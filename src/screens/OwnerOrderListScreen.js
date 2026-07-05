@@ -57,7 +57,9 @@ function OwnerOrderCard({ order, onPress }) {
   );
 }
 
-export default function OwnerOrderListScreen({ onOpenOrder, onLoggedOut }) {
+const isDelivered = (order) => order.fulfilled || order.items.every((i) => i.status === "delivered");
+
+export default function OwnerOrderListScreen({ view = "orders", onNavigate, onOpenOrder, onLoggedOut }) {
   const [orders, setOrders] = useState([]);
   const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(true);
@@ -80,7 +82,8 @@ export default function OwnerOrderListScreen({ onOpenOrder, onLoggedOut }) {
     load();
   }, [load]);
 
-  const filtered = orders.filter((o) => {
+  const scoped = orders.filter((o) => (view === "history" ? isDelivered(o) : !isDelivered(o)));
+  const filtered = scoped.filter((o) => {
     const q = query.trim().toLowerCase();
     if (!q) return true;
     return o.orderNumber.toLowerCase().includes(q) || (o.customerName || "").toLowerCase().includes(q);
@@ -88,7 +91,7 @@ export default function OwnerOrderListScreen({ onOpenOrder, onLoggedOut }) {
 
   return (
     <View style={styles.page}>
-      <Sidebar active="orders" onLogout={async () => { await ownerLogout(); onLoggedOut(); }} />
+      <Sidebar active={view} onNavigate={onNavigate} onLogout={async () => { await ownerLogout(); onLoggedOut(); }} />
 
       <View style={styles.main}>
         <View style={styles.topBar}>
@@ -101,8 +104,8 @@ export default function OwnerOrderListScreen({ onOpenOrder, onLoggedOut }) {
           />
         </View>
 
-        <Text style={styles.heading}>All Orders (Owner View)</Text>
-        <Text style={styles.subheading}>Full detail — costs, fees, every stage</Text>
+        <Text style={styles.heading}>{view === "history" ? "Delivered Orders (Owner View)" : "All Orders (Owner View)"}</Text>
+        <Text style={styles.subheading}>{view === "history" ? `${scoped.length} order${scoped.length === 1 ? "" : "s"} delivered` : "Full detail — costs, fees, every stage"}</Text>
 
         {loading && <ActivityIndicator style={{ marginTop: spacing.xl }} color={colors.primary} />}
         {!!error && !loading && <Text style={styles.error}>{error}</Text>}
