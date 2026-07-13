@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useCallback } from "react";
 import { View, Text, Pressable, StyleSheet, TextInput, ScrollView, ActivityIndicator } from "react-native";
-import { colors, spacing, radius, STATUS_META, STATUS_STEPS } from "../theme";
-import { fetchOwnerOrders, ownerLogout } from "../api";
+import { colors, spacing, radius, STATUS_META, STATUS_STEPS, formatAmount } from "../theme";
+import { fetchOwnerOrders, ownerLogout, fetchPendingReceipts } from "../api";
 import Sidebar from "../components/Sidebar";
 
 function formatDate(dateStr) {
@@ -11,7 +11,7 @@ function formatDate(dateStr) {
 
 function formatMoney(amount, currency) {
   if (!amount) return "—";
-  return `${currency || "AED"} ${Number(amount).toFixed(2)}`;
+  return `${currency || "AED"} ${formatAmount(amount)}`;
 }
 
 // Owner cares about the furthest-along AND furthest-behind item, since that's
@@ -27,8 +27,7 @@ function summarizeOwnerOrder(items) {
 
 function OwnerOrderCard({ order, onPress }) {
   const summary = summarizeOwnerOrder(order.items);
-  const totalCostUSD = order.items.reduce((s, i) => s + (i.costUSD || 0), 0);
-  const totalFeesAED = order.items.reduce((s, i) => s + (i.shippingFeesAED || 0), 0);
+  const profit = order.profit ?? 0;
 
   return (
     <Pressable onPress={onPress} style={({ pressed }) => [styles.card, pressed && styles.cardPressed]}>
@@ -50,8 +49,17 @@ function OwnerOrderCard({ order, onPress }) {
         <Text style={styles.metaText}>Sold: {formatMoney(order.totalPrice, order.currency)}</Text>
       </View>
       <View style={styles.metaRow}>
-        <Text style={styles.metaCostText}>Cost: US ${totalCostUSD.toFixed(2)}</Text>
-        <Text style={styles.metaCostText}>Shipping: AED {totalFeesAED.toFixed(2)}</Text>
+        <Text style={styles.metaCostText}>Cost: AED {formatAmount(order.totalCostAED)}</Text>
+        <Text style={styles.metaCostText}>Shipping: AED {formatAmount(order.totalShippingFeesAED)}</Text>
+      </View>
+      <View style={styles.metaRow}>
+        <Text style={styles.metaCostText}>Gateway+Shopify: AED {formatAmount((order.paymentGatewayFeeAED || 0) + (order.shopifyFeeAED || 0))}</Text>
+        <Text style={styles.metaCostText}>Delivery: AED {formatAmount(order.deliveryFeeAED)}</Text>
+      </View>
+      <View style={styles.metaRow}>
+        <Text style={[styles.metaProfitText, profit < 0 && styles.metaProfitNegative]}>
+          Profit: AED {formatAmount(profit)}
+        </Text>
       </View>
     </Pressable>
   );
@@ -64,6 +72,7 @@ export default function OwnerOrderListScreen({ view = "orders", onNavigate, onOp
   const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [pending, setPending] = useState([]);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -78,9 +87,18 @@ export default function OwnerOrderListScreen({ view = "orders", onNavigate, onOp
     }
   }, [onLoggedOut]);
 
+  const loadPending = useCallback(async () => {
+    try {
+      setPending(await fetchPendingReceipts());
+    } catch (e) {
+      // non-fatal — the main orders list still loads fine without this
+    }
+  }, []);
+
   useEffect(() => {
     load();
-  }, [load]);
+    loadPending();
+  }, [load, loadPending]);
 
   const scoped = orders.filter((o) => (view === "history" ? isDelivered(o) : !isDelivered(o)));
   const filtered = scoped.filter((o) => {
@@ -91,7 +109,13 @@ export default function OwnerOrderListScreen({ view = "orders", onNavigate, onOp
 
   return (
     <View style={styles.page}>
-      <Sidebar active={view} onNavigate={onNavigate} onLogout={async () => { await ownerLogout(); onLoggedOut(); }} />
+      <Sidebar
+        active={view}
+        onNavigate={onNavigate}
+        showProfits
+        confirmationsCount={pending.length}
+        onLogout={async () => { await ownerLogout(); onLoggedOut(); }}
+      />
 
       <View style={styles.main}>
         <View style={styles.topBar}>
@@ -103,6 +127,16 @@ export default function OwnerOrderListScreen({ view = "orders", onNavigate, onOp
             style={styles.search}
           />
         </View>
+
+        {view === "orders" && pending.length > 0 && (
+          <Pressable style={styles.pendingBanner} onPress={() => onNavigate?.("confirmations")}>
+            <View>
+              <Text style={styles.pendingBannerTitle}>{pending.length} item{pending.length === 1 ? "" : "s"} need your confirmation</Text>
+              <Text style={styles.pendingBannerSub}>Read from your mailbox and matched automatically.</Text>
+            </View>
+            <Text style={styles.pendingBannerLink}>Review →</Text>
+          </Pressable>
+        )}
 
         <Text style={styles.heading}>{view === "history" ? "Delivered Orders (Owner View)" : "All Orders (Owner View)"}</Text>
         <Text style={styles.subheading}>{view === "history" ? `${scoped.length} order${scoped.length === 1 ? "" : "s"} delivered` : "Full detail — costs, fees, every stage"}</Text>
@@ -143,6 +177,20 @@ const styles = StyleSheet.create({
   heading: { fontSize: 22, fontWeight: "700", color: colors.text },
   subheading: { fontSize: 13, color: colors.mutedText, marginTop: 2, marginBottom: spacing.lg },
   error: { color: colors.danger, marginTop: spacing.md },
+  pendingBanner: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    backgroundColor: colors.warning + "14",
+    borderWidth: 1,
+    borderColor: colors.warning + "55",
+    borderRadius: radius,
+    padding: spacing.md,
+    marginBottom: spacing.lg,
+  },
+  pendingBannerTitle: { fontSize: 14, fontWeight: "700", color: colors.text },
+  pendingBannerSub: { fontSize: 12, color: colors.mutedText, marginTop: 2 },
+  pendingBannerLink: { fontSize: 13, fontWeight: "700", color: colors.primary },
   empty: { color: colors.mutedText, marginTop: spacing.xl },
   grid: { flexDirection: "row", flexWrap: "wrap", gap: spacing.md, paddingBottom: spacing.xl },
   gridItem: { width: 320, maxWidth: "100%" },
@@ -171,4 +219,6 @@ const styles = StyleSheet.create({
   },
   metaText: { fontSize: 12, color: colors.mutedText, fontWeight: "500" },
   metaCostText: { fontSize: 12, color: colors.secondaryTeal, fontWeight: "700" },
+  metaProfitText: { fontSize: 13, color: colors.success, fontWeight: "700" },
+  metaProfitNegative: { color: colors.danger },
 });

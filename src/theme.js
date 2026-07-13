@@ -68,3 +68,8 @@ export function toEmployeeStatus(rawStatus) {
 
 export const spacing = { xs: 4, sm: 8, md: 16, lg: 24, xl: 32 };
 export const radius = 12;
+
+// Thousands-separated money display (e.g. 1632 -> "1,632.00").
+export function formatAmount(n) {
+  return Number(n || 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}

@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useCallback } from "react";
 import { View, Text, Pressable, StyleSheet, TextInput, ScrollView, Image, ActivityIndicator } from "react-native";
-import { colors, spacing, radius } from "../theme";
+import { colors, spacing, radius, formatAmount } from "../theme";
 import { fetchOrders, logout } from "../api";
 import { summarizeOrder } from "../statusUtils";
 import Sidebar from "../components/Sidebar";
@@ -21,7 +21,7 @@ function formatDate(dateStr) {
 
 function formatMoney(amount, currency) {
   if (!amount) return "—";
-  return `${currency || "AED"} ${Number(amount).toFixed(2)}`;
+  return `${currency || "AED"} ${formatAmount(amount)}`;
 }
 
 function OrderCard({ order, onPress }) {

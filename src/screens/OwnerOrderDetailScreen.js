@@ -1,16 +1,20 @@
 import React from "react";
 import { View, Text, StyleSheet, ScrollView, Image, Pressable } from "react-native";
-import { colors, spacing, radius, STATUS_STEPS, STATUS_META } from "../theme";
+import { colors, spacing, radius, STATUS_STEPS, STATUS_META, formatAmount } from "../theme";
 import Sidebar from "../components/Sidebar";
 import StatusTracker from "../components/StatusTracker";
 
-export default function OwnerOrderDetailScreen({ order, onBack, onLoggedOut }) {
-  const totalCostUSD = order.items.reduce((s, i) => s + (i.costUSD || 0), 0);
-  const totalFeesAED = order.items.reduce((s, i) => s + (i.shippingFeesAED || 0), 0);
+export default function OwnerOrderDetailScreen({ order, onBack, onLoggedOut, view = "orders", onNavigate }) {
+  const totalCostAED = order.totalCostAED || 0;
+  const totalFeesAED = order.totalShippingFeesAED || 0;
+  const paymentGatewayFeeAED = order.paymentGatewayFeeAED || 0;
+  const shopifyFeeAED = order.shopifyFeeAED || 0;
+  const deliveryFeeAED = order.deliveryFeeAED || 0;
+  const profit = order.profit ?? 0;
 
   return (
     <View style={styles.page}>
-      <Sidebar active="orders" onLogout={onLoggedOut} />
+      <Sidebar active={view} onNavigate={onNavigate} showProfits onLogout={onLoggedOut} />
 
       <ScrollView style={styles.main} contentContainerStyle={{ padding: spacing.lg }}>
         <Pressable onPress={onBack}>
@@ -30,15 +34,31 @@ export default function OwnerOrderDetailScreen({ order, onBack, onLoggedOut }) {
             </View>
             <View>
               <Text style={styles.headerLabel}>SOLD FOR</Text>
-              <Text style={styles.headerValue}>{order.currency} {Number(order.totalPrice || 0).toFixed(2)}</Text>
+              <Text style={styles.headerValue}>{order.currency} {formatAmount(order.totalPrice)}</Text>
             </View>
             <View>
               <Text style={styles.headerLabel}>TOTAL COST</Text>
-              <Text style={styles.headerValueCost}>US ${totalCostUSD.toFixed(2)}</Text>
+              <Text style={styles.headerValueCost}>AED {formatAmount(totalCostAED)}</Text>
             </View>
             <View>
               <Text style={styles.headerLabel}>SHIPPING FEES</Text>
-              <Text style={styles.headerValueCost}>AED {totalFeesAED.toFixed(2)}</Text>
+              <Text style={styles.headerValueCost}>AED {formatAmount(totalFeesAED)}</Text>
+            </View>
+            <View>
+              <Text style={styles.headerLabel}>GATEWAY FEE (3%)</Text>
+              <Text style={styles.headerValueCost}>AED {formatAmount(paymentGatewayFeeAED)}</Text>
+            </View>
+            <View>
+              <Text style={styles.headerLabel}>SHOPIFY FEE (2.9%)</Text>
+              <Text style={styles.headerValueCost}>AED {formatAmount(shopifyFeeAED)}</Text>
+            </View>
+            <View>
+              <Text style={styles.headerLabel}>DELIVERY</Text>
+              <Text style={styles.headerValueCost}>AED {formatAmount(deliveryFeeAED)}</Text>
+            </View>
+            <View>
+              <Text style={styles.headerLabel}>PROFIT</Text>
+              <Text style={[styles.headerValueCost, profit < 0 && styles.headerValueNegative]}>AED {formatAmount(profit)}</Text>
             </View>
           </View>
         </View>
@@ -63,8 +83,8 @@ export default function OwnerOrderDetailScreen({ order, onBack, onLoggedOut }) {
                   <Text style={styles.detailText}>eBay #: {item.ebayOrderNumber || "—"}</Text>
                 </View>
                 <View style={styles.detailRow}>
-                  <Text style={styles.costText}>Cost: US ${item.costUSD.toFixed(2)} (AED {item.costAED.toFixed(2)})</Text>
-                  <Text style={styles.costText}>Shipping: AED {item.shippingFeesAED.toFixed(2)} {item.feesPaid ? "✓ paid" : ""}</Text>
+                  <Text style={styles.costText}>Cost: AED {formatAmount(item.costAED)}</Text>
+                  <Text style={styles.costText}>Shipping: AED {formatAmount(item.shippingFeesAED)} {item.feesPaid ? "✓ paid" : ""}</Text>
                 </View>
                 {!!item.aramexTracking && <Text style={styles.trackingText}>Aramex: {item.aramexTracking}</Text>}
                 {!!item.blockedReason ? (
@@ -100,6 +120,7 @@ const styles = StyleSheet.create({
   headerLabel: { fontSize: 10, color: colors.mutedText, letterSpacing: 0.5, marginBottom: 2 },
   headerValue: { fontSize: 14, fontWeight: "600", color: colors.text },
   headerValueCost: { fontSize: 14, fontWeight: "700", color: colors.secondaryTeal },
+  headerValueNegative: { color: colors.danger },
   itemsHeading: { fontSize: 15, fontWeight: "700", color: colors.text, marginBottom: spacing.md },
   itemCard: {
     backgroundColor: colors.surface,

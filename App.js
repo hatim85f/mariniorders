@@ -8,6 +8,9 @@ import OrderListScreen from "./src/screens/OrderListScreen";
 import OrderDetailScreen from "./src/screens/OrderDetailScreen";
 import OwnerOrderListScreen from "./src/screens/OwnerOrderListScreen";
 import OwnerOrderDetailScreen from "./src/screens/OwnerOrderDetailScreen";
+import OwnerProfitsScreen from "./src/screens/OwnerProfitsScreen";
+import OwnerConfirmationsScreen from "./src/screens/OwnerConfirmationsScreen";
+import StockScreen from "./src/screens/StockScreen";
 
 // Owner dashboard (Hatim's full-detail view) is reached via ?owner=1 on web —
 // same app, same PIN-pad component, different backend role. Not applicable
@@ -20,6 +23,16 @@ export default function App() {
   const [checkingSession, setCheckingSession] = useState(true);
   const [loggedIn, setLoggedIn] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState(null);
+  const [view, setView] = useState("orders");
+
+  const handleNavigate = (key) => {
+    const validKeys = isOwnerMode
+      ? ["orders", "history", "profits", "confirmations", "stock"]
+      : ["orders", "history", "stock"];
+    if (!validKeys.includes(key)) return;
+    setView(key);
+    setSelectedOrder(null);
+  };
 
   useEffect(() => {
     (isOwnerMode ? getOwnerToken() : getStoredToken()).then((token) => {
@@ -54,11 +67,37 @@ export default function App() {
   if (isOwnerMode) {
     return (
       <>
-        {selectedOrder ? (
-          <OwnerOrderDetailScreen order={selectedOrder} onBack={() => setSelectedOrder(null)} onLoggedOut={handleLoggedOut} />
+        {view === "profits" ? (
+          <OwnerProfitsScreen view={view} onNavigate={handleNavigate} onLoggedOut={handleLoggedOut} />
+        ) : view === "confirmations" ? (
+          <OwnerConfirmationsScreen view={view} onNavigate={handleNavigate} onLoggedOut={handleLoggedOut} />
+        ) : view === "stock" ? (
+          <StockScreen view={view} onNavigate={handleNavigate} onLoggedOut={handleLoggedOut} isOwner />
+        ) : selectedOrder ? (
+          <OwnerOrderDetailScreen
+            order={selectedOrder}
+            onBack={() => setSelectedOrder(null)}
+            onLoggedOut={handleLoggedOut}
+            view={view}
+            onNavigate={handleNavigate}
+          />
         ) : (
-          <OwnerOrderListScreen onOpenOrder={setSelectedOrder} onLoggedOut={handleLoggedOut} />
+          <OwnerOrderListScreen
+            view={view}
+            onNavigate={handleNavigate}
+            onOpenOrder={setSelectedOrder}
+            onLoggedOut={handleLoggedOut}
+          />
         )}
+        <StatusBar style="auto" />
+      </>
+    );
+  }
+
+  if (view === "stock") {
+    return (
+      <>
+        <StockScreen view={view} onNavigate={handleNavigate} onLoggedOut={handleLoggedOut} />
         <StatusBar style="auto" />
       </>
     );
@@ -67,7 +106,13 @@ export default function App() {
   if (selectedOrder) {
     return (
       <>
-        <OrderDetailScreen order={selectedOrder} onBack={() => setSelectedOrder(null)} onLoggedOut={handleLoggedOut} />
+        <OrderDetailScreen
+          order={selectedOrder}
+          onBack={() => setSelectedOrder(null)}
+          onLoggedOut={handleLoggedOut}
+          view={view}
+          onNavigate={handleNavigate}
+        />
         <StatusBar style="auto" />
       </>
     );
@@ -75,7 +120,7 @@ export default function App() {
 
   return (
     <>
-      <OrderListScreen onOpenOrder={setSelectedOrder} onLoggedOut={handleLoggedOut} />
+      <OrderListScreen view={view} onNavigate={handleNavigate} onOpenOrder={setSelectedOrder} onLoggedOut={handleLoggedOut} />
       <StatusBar style="auto" />
     </>
   );

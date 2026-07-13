@@ -5,7 +5,7 @@ import Sidebar from "../components/Sidebar";
 import StatusTracker from "../components/StatusTracker";
 import { markOrderFulfilled } from "../api";
 
-export default function OrderDetailScreen({ order, onBack, onLoggedOut }) {
+export default function OrderDetailScreen({ order, onBack, onLoggedOut, view = "orders", onNavigate }) {
   const [fulfilling, setFulfilling] = useState(false);
   const [error, setError] = useState("");
   const [fulfilled, setFulfilled] = useState(order.fulfilled);
@@ -25,7 +25,7 @@ export default function OrderDetailScreen({ order, onBack, onLoggedOut }) {
 
   return (
     <View style={styles.page}>
-      <Sidebar active="orders" onLogout={onLoggedOut} />
+      <Sidebar active={view} onNavigate={onNavigate} onLogout={onLoggedOut} />
 
       <ScrollView style={styles.main} contentContainerStyle={{ padding: spacing.lg }}>
         <Pressable onPress={onBack}>

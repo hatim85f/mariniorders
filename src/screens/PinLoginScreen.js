@@ -1,5 +1,5 @@
-import React, { useState } from "react";
-import { View, Text, Pressable, StyleSheet, ActivityIndicator } from "react-native";
+import React, { useState, useEffect, useRef } from "react";
+import { View, Text, Pressable, StyleSheet, ActivityIndicator, Platform } from "react-native";
 import { colors, spacing, radius } from "../theme";
 import { login, ownerLogin } from "../api";
 
@@ -32,6 +32,42 @@ export default function PinLoginScreen({ onLoggedIn, mode = "employee" }) {
       setLoading(false);
     }
   };
+
+  // Physical keyboard support (web only) — digits 0-9, Backspace, Delete/Escape
+  // to clear, Enter to unlock. The effect only attaches once, so it must never
+  // read `digits`/`loading`/`unlock` from its own closure — those go stale
+  // immediately (the 4-digit cap would silently stop capping after the first
+  // keystroke, and Enter would always submit an empty PIN via the stale
+  // `unlock`). Everything reads through refs kept current every render.
+  const stateRef = useRef({ digits, loading });
+  stateRef.current = { digits, loading };
+  const unlockRef = useRef(unlock);
+  unlockRef.current = unlock;
+
+  useEffect(() => {
+    if (Platform.OS !== "web") return;
+    const handleKeyDown = (e) => {
+      const { digits: currentDigits, loading: currentLoading } = stateRef.current;
+      if (/^[0-9]$/.test(e.key)) {
+        e.preventDefault();
+        setError("");
+        if (currentDigits.length < 4) setDigits((d) => [...d, e.key]);
+      } else if (e.key === "Backspace") {
+        e.preventDefault();
+        setError("");
+        setDigits((d) => d.slice(0, -1));
+      } else if (e.key === "Delete" || e.key === "Escape") {
+        e.preventDefault();
+        setError("");
+        setDigits([]);
+      } else if (e.key === "Enter") {
+        e.preventDefault();
+        if (currentDigits.length === 4 && !currentLoading) unlockRef.current();
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, []);
 
   return (
     <View style={styles.page}>

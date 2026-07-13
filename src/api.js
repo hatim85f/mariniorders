@@ -89,3 +89,72 @@ export async function fetchOwnerOrders() {
   if (!res.ok) throw new Error(data.message || "Failed to load orders");
   return data;
 }
+
+// AI-parsed receipts/screenshots waiting for a one-tap confirm before
+// anything is written to Purchase/InboundShipment.
+export async function fetchPendingReceipts() {
+  const token = await getOwnerToken();
+  const res = await fetch(`${API_BASE_URL}/api/janmarini/owner/pending-receipts`, {
+    headers: { "x-auth-token": token || "" },
+  });
+  if (res.status === 401) {
+    await ownerLogout();
+    throw new Error("Session expired, please log in again");
+  }
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.message || "Failed to load pending receipts");
+  return data;
+}
+
+export async function confirmPendingReceipt(id) {
+  const token = await getOwnerToken();
+  const res = await fetch(`${API_BASE_URL}/api/janmarini/owner/pending-receipts/${id}/confirm`, {
+    method: "POST",
+    headers: { "x-auth-token": token || "" },
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.message || "Failed to confirm");
+  return data;
+}
+
+export async function rejectPendingReceipt(id) {
+  const token = await getOwnerToken();
+  const res = await fetch(`${API_BASE_URL}/api/janmarini/owner/pending-receipts/${id}/reject`, {
+    method: "POST",
+    headers: { "x-auth-token": token || "" },
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.message || "Failed to reject");
+  return data;
+}
+
+// ---- Stock (unassigned inventory) ------------------------------------------
+// Shared between the employee and owner dashboards — pass isOwner so the
+// right token is sent (the backend only checks token validity here, not
+// role, but cost is only included in the response for an owner token).
+
+async function stockToken(isOwner) {
+  return isOwner ? getOwnerToken() : getStoredToken();
+}
+
+export async function fetchStock(isOwner = false) {
+  const token = await stockToken(isOwner);
+  const res = await fetch(`${API_BASE_URL}/api/janmarini/stock`, {
+    headers: { "x-auth-token": token || "" },
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.message || "Failed to load stock");
+  return data;
+}
+
+export async function addStockItem(payload, isOwner = false) {
+  const token = await stockToken(isOwner);
+  const res = await fetch(`${API_BASE_URL}/api/janmarini/stock`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "x-auth-token": token || "" },
+    body: JSON.stringify(payload),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.message || "Failed to add stock item");
+  return data;
+}
