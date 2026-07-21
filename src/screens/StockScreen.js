@@ -1,15 +1,92 @@
 import React, { useEffect, useState, useCallback } from "react";
 import { View, Text, Pressable, StyleSheet, TextInput, ScrollView, ActivityIndicator } from "react-native";
 import { colors, spacing, radius, STATUS_META, formatAmount } from "../theme";
-import { fetchStock, addStockItem, logout, ownerLogout } from "../api";
+import { fetchStock, addStockItem, updateStockItem, deleteStockItem, logout, ownerLogout } from "../api";
 import Sidebar from "../components/Sidebar";
 
 // Unassigned inventory — items already bought (e.g. leftover from a
 // cancelled order) or logged by hand, not yet tied to a customer order.
 // Same screen for both dashboards; `isOwner` only toggles cost visibility
 // and which token/logout path is used, matching every other screen here.
-function StockCard({ item, isOwner }) {
+function StockCard({ item, isOwner, onChanged }) {
   const meta = STATUS_META[item.status] || STATUS_META.in_office;
+  const [editing, setEditing] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const [itemName, setItemName] = useState(item.itemName);
+  const [quantity, setQuantity] = useState(String(item.quantity));
+  const [tracking, setTracking] = useState(item.shopAndShipTracking || "");
+  const [note, setNote] = useState(item.stockNote || "");
+  const [cost, setCost] = useState(item.costUSD ? String(item.costUSD) : "");
+
+  const save = async () => {
+    if (!itemName.trim()) {
+      setError("Item name is required");
+      return;
+    }
+    setBusy(true);
+    setError("");
+    try {
+      await updateStockItem(
+        item.id,
+        {
+          itemName: itemName.trim(),
+          quantity: Number(quantity) || 1,
+          shopAndShipTracking: tracking.trim(),
+          stockNote: note.trim(),
+          ...(isOwner ? { costUSD: Number(cost) || 0 } : {}),
+        },
+        isOwner
+      );
+      setEditing(false);
+      onChanged();
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const remove = async () => {
+    setBusy(true);
+    setError("");
+    try {
+      await deleteStockItem(item.id, isOwner);
+      onChanged();
+    } catch (e) {
+      setError(e.message);
+      setBusy(false);
+      setConfirmDelete(false);
+    }
+  };
+
+  if (editing) {
+    return (
+      <View style={styles.card}>
+        <Text style={styles.formHeading}>Edit stock item</Text>
+        <TextInput value={itemName} onChangeText={setItemName} placeholder="Item name" placeholderTextColor={colors.mutedText} style={styles.input} />
+        <View style={styles.formRow}>
+          <TextInput value={quantity} onChangeText={setQuantity} placeholder="Qty" placeholderTextColor={colors.mutedText} keyboardType="numeric" style={[styles.input, styles.inputSmall]} />
+          <TextInput value={tracking} onChangeText={setTracking} placeholder="Shop & Ship tracking #" placeholderTextColor={colors.mutedText} style={[styles.input, styles.inputFlex]} />
+        </View>
+        {isOwner && (
+          <TextInput value={cost} onChangeText={setCost} placeholder="Cost (USD)" placeholderTextColor={colors.mutedText} keyboardType="numeric" style={styles.input} />
+        )}
+        <TextInput value={note} onChangeText={setNote} placeholder="Note (optional)" placeholderTextColor={colors.mutedText} style={styles.input} />
+        {!!error && <Text style={styles.formError}>{error}</Text>}
+        <View style={styles.formActions}>
+          <Pressable style={styles.cancelBtn} onPress={() => { setEditing(false); setError(""); }}>
+            <Text style={styles.cancelBtnText}>Cancel</Text>
+          </Pressable>
+          <Pressable disabled={busy} style={styles.saveBtn} onPress={save}>
+            <Text style={styles.saveBtnText}>{busy ? "Saving..." : "Save"}</Text>
+          </Pressable>
+        </View>
+      </View>
+    );
+  }
+
   return (
     <View style={styles.card}>
       <View style={styles.cardTop}>
@@ -24,6 +101,21 @@ function StockCard({ item, isOwner }) {
       )}
       {isOwner && !!item.costUSD && <Text style={styles.cost}>Cost: ${formatAmount(item.costUSD)}</Text>}
       {!!item.stockNote && <Text style={styles.note}>{item.stockNote}</Text>}
+      {!!error && <Text style={styles.formError}>{error}</Text>}
+      <View style={styles.cardActions}>
+        <Pressable style={styles.editBtn} onPress={() => { setEditing(true); setConfirmDelete(false); }}>
+          <Text style={styles.editBtnText}>Edit</Text>
+        </Pressable>
+        {!confirmDelete ? (
+          <Pressable style={styles.deleteBtn} onPress={() => setConfirmDelete(true)}>
+            <Text style={styles.deleteBtnText}>Delete</Text>
+          </Pressable>
+        ) : (
+          <Pressable disabled={busy} style={[styles.deleteBtn, styles.deleteConfirmBtn]} onPress={remove}>
+            <Text style={styles.deleteConfirmText}>{busy ? "Deleting..." : "Confirm delete?"}</Text>
+          </Pressable>
+        )}
+      </View>
     </View>
   );
 }
@@ -187,7 +279,7 @@ export default function StockScreen({ view = "stock", onNavigate, onLoggedOut, i
           <ScrollView contentContainerStyle={styles.grid}>
             {items.map((item) => (
               <View key={item.id} style={styles.gridItem}>
-                <StockCard item={item} isOwner={isOwner} />
+                <StockCard item={item} isOwner={isOwner} onChanged={load} />
               </View>
             ))}
           </ScrollView>
@@ -273,4 +365,25 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   saveBtnText: { fontSize: 13, fontWeight: "700", color: "#fff" },
+  cardActions: { flexDirection: "row", gap: spacing.sm, marginTop: spacing.md },
+  editBtn: {
+    flex: 1,
+    borderWidth: 1,
+    borderColor: colors.primary,
+    borderRadius: radius - 4,
+    paddingVertical: 6,
+    alignItems: "center",
+  },
+  editBtnText: { fontSize: 12, fontWeight: "700", color: colors.primary },
+  deleteBtn: {
+    flex: 1,
+    borderWidth: 1,
+    borderColor: colors.danger,
+    borderRadius: radius - 4,
+    paddingVertical: 6,
+    alignItems: "center",
+  },
+  deleteBtnText: { fontSize: 12, fontWeight: "700", color: colors.danger },
+  deleteConfirmBtn: { backgroundColor: colors.danger },
+  deleteConfirmText: { fontSize: 12, fontWeight: "700", color: "#fff" },
 });

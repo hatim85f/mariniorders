@@ -158,3 +158,26 @@ export async function addStockItem(payload, isOwner = false) {
   if (!res.ok) throw new Error(data.message || "Failed to add stock item");
   return data;
 }
+
+export async function updateStockItem(id, payload, isOwner = false) {
+  const token = await stockToken(isOwner);
+  const res = await fetch(`${API_BASE_URL}/api/janmarini/stock/${id}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json", "x-auth-token": token || "" },
+    body: JSON.stringify(payload),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.message || "Failed to update stock item");
+  return data;
+}
+
+export async function deleteStockItem(id, isOwner = false) {
+  const token = await stockToken(isOwner);
+  const res = await fetch(`${API_BASE_URL}/api/janmarini/stock/${id}`, {
+    method: "DELETE",
+    headers: { "x-auth-token": token || "" },
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.message || "Failed to delete stock item");
+  return data;
+}
