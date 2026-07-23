@@ -49,6 +49,7 @@ function ItemDetail({ item, shipment }) {
 }
 
 function ConfirmationCard({ receipt, onConfirm, onReject, busy }) {
+  const parseFailed = receipt.status === "pending" && /^Parsing failed/.test(receipt.aiNotes || "");
   const shipment = isShipmentReceipt(receipt);
   const list = receipt.aiParsed?.list || [];
   const hasActionable = list.some((i) => (shipment ? i.snsShipmentNumber : i.matchedOrderNumber));
@@ -61,7 +62,15 @@ function ConfirmationCard({ receipt, onConfirm, onReject, busy }) {
       </View>
       <Text style={styles.cardSubject}>{receipt.subject || "(no subject)"}</Text>
 
-      {list.length === 0 ? (
+      {parseFailed && (
+        <View style={styles.parseErrorBox}>
+          <Text style={styles.parseErrorTitle}>Automatic reading failed</Text>
+          <Text style={styles.parseErrorText}>{receipt.aiNotes}</Text>
+          <Text style={styles.parseErrorText}>The system will retry this message on the next scheduled run.</Text>
+        </View>
+      )}
+
+      {!parseFailed && (list.length === 0 ? (
         <Text style={styles.noData}>No usable order/shipment data found in this message — safe to reject, nothing will be applied.</Text>
       ) : (
         <View style={styles.itemsWrap}>
@@ -69,9 +78,9 @@ function ConfirmationCard({ receipt, onConfirm, onReject, busy }) {
             <ItemDetail key={i} item={item} shipment={shipment} />
           ))}
         </View>
-      )}
+      ))}
 
-      <View style={styles.cardActions}>
+      {!parseFailed && <View style={styles.cardActions}>
         <Pressable disabled={busy} style={styles.rejectBtn} onPress={() => onReject(receipt._id)}>
           <Text style={styles.rejectBtnText}>Reject</Text>
         </Pressable>
@@ -80,7 +89,7 @@ function ConfirmationCard({ receipt, onConfirm, onReject, busy }) {
             <Text style={styles.confirmBtnText}>{busy ? "..." : list.length > 1 ? `Confirm all ${list.length}` : "Confirm"}</Text>
           </Pressable>
         )}
-      </View>
+      </View>}
     </View>
   );
 }
@@ -193,6 +202,9 @@ const styles = StyleSheet.create({
   cardDate: { fontSize: 11, color: colors.mutedText },
   cardSubject: { fontSize: 15, fontWeight: "700", color: colors.text, marginTop: 4, marginBottom: spacing.md },
   noData: { fontSize: 13, color: colors.mutedText, fontStyle: "italic" },
+  parseErrorBox: { backgroundColor: colors.danger + "12", borderRadius: radius - 4, padding: spacing.md },
+  parseErrorTitle: { fontSize: 13, fontWeight: "700", color: colors.danger, marginBottom: 4 },
+  parseErrorText: { fontSize: 12, color: colors.mutedText, marginTop: 2 },
   itemsWrap: { gap: spacing.md },
   itemBlock: {
     borderLeftWidth: 3,
