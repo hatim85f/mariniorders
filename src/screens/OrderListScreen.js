@@ -45,6 +45,7 @@ function OrderCard({ order, onPress }) {
         <View>
           <Text style={styles.customerName}>{order.customerName || "Unknown customer"}</Text>
           <Text style={styles.customerPhone}>{order.customerPhone || "—"}</Text>
+          {!!order.customerEmail && <Text style={styles.customerEmail}>{order.customerEmail}</Text>}
         </View>
       </View>
 
@@ -196,6 +197,7 @@ const styles = StyleSheet.create({
   avatarText: { fontSize: 12, fontWeight: "700", color: colors.primary },
   customerName: { fontSize: 13, fontWeight: "600", color: colors.text },
   customerPhone: { fontSize: 12, color: colors.mutedText },
+  customerEmail: { fontSize: 11, color: colors.mutedText, marginTop: 1 },
   metaRow: {
     flexDirection: "row",
     justifyContent: "space-between",

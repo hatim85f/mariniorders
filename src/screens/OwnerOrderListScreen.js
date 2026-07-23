@@ -43,6 +43,7 @@ function OwnerOrderCard({ order, onPress }) {
 
       <Text style={styles.customerName}>{order.customerName || "Unknown customer"}</Text>
       <Text style={styles.customerPhone}>{order.customerPhone || "—"}</Text>
+      {!!order.customerEmail && <Text style={styles.customerPhone}>{order.customerEmail}</Text>}
 
       <View style={styles.metaRow}>
         <Text style={styles.metaText}>{formatDate(order.orderDate)}</Text>

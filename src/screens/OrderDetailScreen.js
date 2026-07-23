@@ -59,6 +59,10 @@ export default function OrderDetailScreen({ order, onBack, onLoggedOut, view = "
               <Text style={styles.headerLabel}>PHONE</Text>
               <Text style={styles.headerValue}>{order.customerPhone || "—"}</Text>
             </View>
+            <View>
+              <Text style={styles.headerLabel}>EMAIL</Text>
+              <Text style={styles.headerValue}>{order.customerEmail || "—"}</Text>
+            </View>
           </View>
         </View>
 
@@ -105,7 +109,7 @@ const styles = StyleSheet.create({
   },
   headerTopRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: spacing.md },
   orderTitle: { fontSize: 20, fontWeight: "700", color: colors.text },
-  headerCols: { flexDirection: "row", gap: spacing.xl },
+  headerCols: { flexDirection: "row", gap: spacing.xl, flexWrap: "wrap" },
   headerLabel: { fontSize: 10, color: colors.mutedText, letterSpacing: 0.5, marginBottom: 2 },
   headerValue: { fontSize: 14, fontWeight: "600", color: colors.text },
   itemsHeading: { fontSize: 15, fontWeight: "700", color: colors.text, marginBottom: spacing.md },

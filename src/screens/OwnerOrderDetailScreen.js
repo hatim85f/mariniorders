@@ -33,6 +33,10 @@ export default function OwnerOrderDetailScreen({ order, onBack, onLoggedOut, vie
               <Text style={styles.headerValue}>{order.customerPhone || "—"}</Text>
             </View>
             <View>
+              <Text style={styles.headerLabel}>EMAIL</Text>
+              <Text style={styles.headerValue}>{order.customerEmail || "—"}</Text>
+            </View>
+            <View>
               <Text style={styles.headerLabel}>SOLD FOR</Text>
               <Text style={styles.headerValue}>{order.currency} {formatAmount(order.totalPrice)}</Text>
             </View>
