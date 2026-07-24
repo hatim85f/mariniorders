@@ -8,7 +8,9 @@ import Sidebar from "../components/Sidebar";
 // cancelled order) or logged by hand, not yet tied to a customer order.
 // Same screen for both dashboards; `isOwner` only toggles cost visibility
 // and which token/logout path is used, matching every other screen here.
-function StockCard({ item, isOwner, onChanged }) {
+// Rendered as a list (one row per item) rather than a card grid — same
+// fields, just easier to scan across many items at once.
+function StockRow({ item, isOwner, onChanged }) {
   const meta = STATUS_META[item.status] || STATUS_META.in_office;
   const [editing, setEditing] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -63,16 +65,16 @@ function StockCard({ item, isOwner, onChanged }) {
 
   if (editing) {
     return (
-      <View style={styles.card}>
+      <View style={styles.editRow}>
         <Text style={styles.formHeading}>Edit stock item</Text>
         <TextInput value={itemName} onChangeText={setItemName} placeholder="Item name" placeholderTextColor={colors.mutedText} style={styles.input} />
         <View style={styles.formRow}>
           <TextInput value={quantity} onChangeText={setQuantity} placeholder="Qty" placeholderTextColor={colors.mutedText} keyboardType="numeric" style={[styles.input, styles.inputSmall]} />
           <TextInput value={tracking} onChangeText={setTracking} placeholder="Shop & Ship tracking #" placeholderTextColor={colors.mutedText} style={[styles.input, styles.inputFlex]} />
+          {isOwner && (
+            <TextInput value={cost} onChangeText={setCost} placeholder="Cost (USD)" placeholderTextColor={colors.mutedText} keyboardType="numeric" style={[styles.input, styles.inputSmall]} />
+          )}
         </View>
-        {isOwner && (
-          <TextInput value={cost} onChangeText={setCost} placeholder="Cost (USD)" placeholderTextColor={colors.mutedText} keyboardType="numeric" style={styles.input} />
-        )}
         <TextInput value={note} onChangeText={setNote} placeholder="Note (optional)" placeholderTextColor={colors.mutedText} style={styles.input} />
         {!!error && <Text style={styles.formError}>{error}</Text>}
         <View style={styles.formActions}>
@@ -88,21 +90,32 @@ function StockCard({ item, isOwner, onChanged }) {
   }
 
   return (
-    <View style={styles.card}>
-      <View style={styles.cardTop}>
-        <Text style={styles.itemName}>{item.itemName}</Text>
+    <View style={styles.row}>
+      <View style={[styles.cell, styles.cellName]}>
+        <Text style={styles.itemName} numberOfLines={2}>{item.itemName}</Text>
+        {!!item.stockNote && <Text style={styles.note} numberOfLines={2}>{item.stockNote}</Text>}
+        {!!error && <Text style={styles.formError}>{error}</Text>}
+      </View>
+      <View style={[styles.cell, styles.cellQty]}>
+        <Text style={styles.cellLabel}>Qty</Text>
+        <Text style={styles.cellValue}>{item.quantity}</Text>
+      </View>
+      <View style={[styles.cell, styles.cellTracking]}>
+        <Text style={styles.cellLabel}>Shop &amp; Ship</Text>
+        <Text style={styles.cellValue}>{item.shopAndShipTracking || "—"}</Text>
+      </View>
+      {isOwner && (
+        <View style={[styles.cell, styles.cellCost]}>
+          <Text style={styles.cellLabel}>Cost</Text>
+          <Text style={styles.cellValueCost}>{item.costUSD ? `$${formatAmount(item.costUSD)}` : "—"}</Text>
+        </View>
+      )}
+      <View style={[styles.cell, styles.cellStatus]}>
         <View style={[styles.pill, { backgroundColor: meta.color + "22" }]}>
           <Text style={[styles.pillText, { color: meta.color }]}>{meta.label}</Text>
         </View>
       </View>
-      <Text style={styles.qty}>Quantity: {item.quantity}</Text>
-      {!!item.shopAndShipTracking && (
-        <Text style={styles.tracking}>Shop &amp; Ship: {item.shopAndShipTracking}</Text>
-      )}
-      {isOwner && !!item.costUSD && <Text style={styles.cost}>Cost: ${formatAmount(item.costUSD)}</Text>}
-      {!!item.stockNote && <Text style={styles.note}>{item.stockNote}</Text>}
-      {!!error && <Text style={styles.formError}>{error}</Text>}
-      <View style={styles.cardActions}>
+      <View style={[styles.cell, styles.cellActions]}>
         <Pressable style={styles.editBtn} onPress={() => { setEditing(true); setConfirmDelete(false); }}>
           <Text style={styles.editBtnText}>Edit</Text>
         </Pressable>
@@ -112,7 +125,7 @@ function StockCard({ item, isOwner, onChanged }) {
           </Pressable>
         ) : (
           <Pressable disabled={busy} style={[styles.deleteBtn, styles.deleteConfirmBtn]} onPress={remove}>
-            <Text style={styles.deleteConfirmText}>{busy ? "Deleting..." : "Confirm delete?"}</Text>
+            <Text style={styles.deleteConfirmText}>{busy ? "..." : "Confirm?"}</Text>
           </Pressable>
         )}
       </View>
@@ -233,6 +246,7 @@ function AddStockForm({ isOwner, onAdded }) {
 
 export default function StockScreen({ view = "stock", onNavigate, onLoggedOut, isOwner = false }) {
   const [items, setItems] = useState([]);
+  const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -253,6 +267,16 @@ export default function StockScreen({ view = "stock", onNavigate, onLoggedOut, i
     load();
   }, [load]);
 
+  const filtered = items.filter((item) => {
+    const q = query.trim().toLowerCase();
+    if (!q) return true;
+    return (
+      item.itemName.toLowerCase().includes(q) ||
+      (item.shopAndShipTracking || "").toLowerCase().includes(q) ||
+      (item.stockNote || "").toLowerCase().includes(q)
+    );
+  });
+
   return (
     <View style={styles.page}>
       <Sidebar
@@ -266,6 +290,16 @@ export default function StockScreen({ view = "stock", onNavigate, onLoggedOut, i
         <Text style={styles.heading}>Available Stock</Text>
         <Text style={styles.subheading}>Items already bought but not tied to a current order.</Text>
 
+        <View style={styles.topBar}>
+          <TextInput
+            value={query}
+            onChangeText={setQuery}
+            placeholder="Search item name, tracking #, note..."
+            placeholderTextColor={colors.mutedText}
+            style={styles.search}
+          />
+        </View>
+
         <AddStockForm isOwner={isOwner} onAdded={load} />
 
         {loading && <ActivityIndicator style={{ marginTop: spacing.xl }} color={colors.primary} />}
@@ -275,12 +309,22 @@ export default function StockScreen({ view = "stock", onNavigate, onLoggedOut, i
           <Text style={styles.empty}>No stock items right now.</Text>
         )}
 
-        {!loading && !error && items.length > 0 && (
-          <ScrollView contentContainerStyle={styles.grid}>
-            {items.map((item) => (
-              <View key={item.id} style={styles.gridItem}>
-                <StockCard item={item} isOwner={isOwner} onChanged={load} />
-              </View>
+        {!loading && !error && items.length > 0 && filtered.length === 0 && (
+          <Text style={styles.empty}>No stock items match your search.</Text>
+        )}
+
+        {!loading && !error && filtered.length > 0 && (
+          <ScrollView contentContainerStyle={styles.list}>
+            <View style={styles.listHeader}>
+              <Text style={[styles.headerCell, styles.cellName]}>Item</Text>
+              <Text style={[styles.headerCell, styles.cellQty]}>Qty</Text>
+              <Text style={[styles.headerCell, styles.cellTracking]}>Shop &amp; Ship</Text>
+              {isOwner && <Text style={[styles.headerCell, styles.cellCost]}>Cost</Text>}
+              <Text style={[styles.headerCell, styles.cellStatus]}>Status</Text>
+              <Text style={[styles.headerCell, styles.cellActions]}></Text>
+            </View>
+            {filtered.map((item) => (
+              <StockRow key={item.id} item={item} isOwner={isOwner} onChanged={load} />
             ))}
           </ScrollView>
         )}
@@ -294,25 +338,69 @@ const styles = StyleSheet.create({
   main: { flex: 1, padding: spacing.lg },
   heading: { fontSize: 22, fontWeight: "700", color: colors.text },
   subheading: { fontSize: 13, color: colors.mutedText, marginTop: 2, marginBottom: spacing.lg },
-  error: { color: colors.danger, marginTop: spacing.md },
-  empty: { color: colors.mutedText, marginTop: spacing.xl },
-  grid: { flexDirection: "row", flexWrap: "wrap", gap: spacing.md, paddingBottom: spacing.xl },
-  gridItem: { width: 300, maxWidth: "100%" },
-  card: {
-    backgroundColor: colors.surface,
-    borderRadius: radius,
+  topBar: { flexDirection: "row", marginBottom: spacing.lg },
+  search: {
+    flex: 1,
+    maxWidth: 420,
+    height: 40,
+    borderRadius: radius - 4,
     borderWidth: 1,
     borderColor: colors.border,
-    padding: spacing.md,
+    backgroundColor: colors.surface,
+    paddingHorizontal: spacing.md,
+    color: colors.text,
   },
-  cardTop: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start" },
-  itemName: { fontSize: 14, fontWeight: "700", color: colors.text, flex: 1, marginRight: spacing.sm },
-  pill: { paddingHorizontal: spacing.sm, paddingVertical: 4, borderRadius: 999 },
+  error: { color: colors.danger, marginTop: spacing.md },
+  empty: { color: colors.mutedText, marginTop: spacing.xl },
+
+  list: { paddingBottom: spacing.xl, minWidth: 720 },
+  listHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: spacing.md,
+    paddingBottom: spacing.sm,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+    marginBottom: spacing.xs,
+  },
+  headerCell: { fontSize: 11, fontWeight: "700", color: colors.mutedText, letterSpacing: 0.5, textTransform: "uppercase" },
+
+  row: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: colors.surface,
+    borderRadius: radius - 4,
+    borderWidth: 1,
+    borderColor: colors.border,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
+    marginBottom: spacing.xs,
+  },
+  editRow: {
+    backgroundColor: colors.surface,
+    borderRadius: radius - 4,
+    borderWidth: 1,
+    borderColor: colors.primary,
+    padding: spacing.md,
+    marginBottom: spacing.xs,
+  },
+  cell: { paddingRight: spacing.sm },
+  cellName: { flex: 3, minWidth: 200 },
+  cellQty: { width: 50 },
+  cellTracking: { width: 150 },
+  cellCost: { width: 90 },
+  cellStatus: { width: 110 },
+  cellActions: { width: 140, flexDirection: "row", gap: spacing.xs },
+
+  cellLabel: { fontSize: 10, color: colors.mutedText, marginBottom: 2 },
+  cellValue: { fontSize: 13, color: colors.text, fontWeight: "500" },
+  cellValueCost: { fontSize: 13, color: colors.secondaryTeal, fontWeight: "700" },
+
+  itemName: { fontSize: 14, fontWeight: "700", color: colors.text },
+  pill: { paddingHorizontal: spacing.sm, paddingVertical: 4, borderRadius: 999, alignSelf: "flex-start" },
   pillText: { fontSize: 11, fontWeight: "700" },
-  qty: { fontSize: 12, color: colors.mutedText, marginTop: spacing.sm },
-  tracking: { fontSize: 12, color: colors.primary, fontWeight: "600", marginTop: 4 },
-  cost: { fontSize: 12, color: colors.secondaryTeal, fontWeight: "700", marginTop: 4 },
-  note: { fontSize: 12, color: colors.mutedText, marginTop: 4, fontStyle: "italic" },
+  note: { fontSize: 12, color: colors.mutedText, marginTop: 2, fontStyle: "italic" },
+
   addToggle: {
     alignSelf: "flex-start",
     borderWidth: 1,
@@ -365,22 +453,21 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   saveBtnText: { fontSize: 13, fontWeight: "700", color: "#fff" },
-  cardActions: { flexDirection: "row", gap: spacing.sm, marginTop: spacing.md },
   editBtn: {
-    flex: 1,
     borderWidth: 1,
     borderColor: colors.primary,
     borderRadius: radius - 4,
     paddingVertical: 6,
+    paddingHorizontal: spacing.sm,
     alignItems: "center",
   },
   editBtnText: { fontSize: 12, fontWeight: "700", color: colors.primary },
   deleteBtn: {
-    flex: 1,
     borderWidth: 1,
     borderColor: colors.danger,
     borderRadius: radius - 4,
     paddingVertical: 6,
+    paddingHorizontal: spacing.sm,
     alignItems: "center",
   },
   deleteBtnText: { fontSize: 12, fontWeight: "700", color: colors.danger },
