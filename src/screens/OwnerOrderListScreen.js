@@ -44,6 +44,11 @@ function OwnerOrderCard({ order, onPress }) {
       <Text style={styles.customerName}>{order.customerName || "Unknown customer"}</Text>
       <Text style={styles.customerPhone}>{order.customerPhone || "—"}</Text>
       {!!order.customerEmail && <Text style={styles.customerPhone}>{order.customerEmail}</Text>}
+      {!!order.aramexTrackings?.length && (
+        <Text style={styles.trackingText} numberOfLines={1}>
+          Aramex: {order.aramexTrackings.join(", ")}
+        </Text>
+      )}
 
       <View style={styles.metaRow}>
         <Text style={styles.metaText}>{formatDate(order.orderDate)}</Text>
@@ -210,6 +215,7 @@ const styles = StyleSheet.create({
   pillText: { fontSize: 11, fontWeight: "700" },
   customerName: { fontSize: 13, fontWeight: "600", color: colors.text, marginTop: spacing.md },
   customerPhone: { fontSize: 12, color: colors.mutedText },
+  trackingText: { fontSize: 12, color: colors.primary, fontWeight: "600", marginTop: spacing.sm },
   metaRow: {
     flexDirection: "row",
     justifyContent: "space-between",
