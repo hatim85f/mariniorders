@@ -128,6 +128,45 @@ export async function rejectPendingReceipt(id) {
   return data;
 }
 
+// Raised automatically when a confirmed purchase receipt shows an item
+// reached the ship-to warehouse (e.g. Shipito) -- see
+// janmariniReceiptParser.js applyOnePurchase on the backend.
+export async function fetchNotifications() {
+  const token = await getOwnerToken();
+  const res = await fetch(`${API_BASE_URL}/api/janmarini/owner/notifications`, {
+    headers: { "x-auth-token": token || "" },
+  });
+  if (res.status === 401) {
+    await ownerLogout();
+    throw new Error("Session expired, please log in again");
+  }
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.message || "Failed to load notifications");
+  return data;
+}
+
+export async function markNotificationRead(id) {
+  const token = await getOwnerToken();
+  const res = await fetch(`${API_BASE_URL}/api/janmarini/owner/notifications/${id}/read`, {
+    method: "POST",
+    headers: { "x-auth-token": token || "" },
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.message || "Failed to mark notification read");
+  return data;
+}
+
+export async function markAllNotificationsRead() {
+  const token = await getOwnerToken();
+  const res = await fetch(`${API_BASE_URL}/api/janmarini/owner/notifications/mark-all-read`, {
+    method: "POST",
+    headers: { "x-auth-token": token || "" },
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.message || "Failed to mark all notifications read");
+  return data;
+}
+
 // ---- Stock (unassigned inventory) ------------------------------------------
 // Shared between the employee and owner dashboards — pass isOwner so the
 // right token is sent (the backend only checks token validity here, not

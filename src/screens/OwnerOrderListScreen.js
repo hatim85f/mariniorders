@@ -14,6 +14,11 @@ function formatMoney(amount, currency) {
   return `${currency || "AED"} ${formatAmount(amount)}`;
 }
 
+function formatAddress(addr) {
+  if (!addr) return "";
+  return [addr.address1, addr.address2, addr.city, addr.country].filter(Boolean).join(", ");
+}
+
 // Owner cares about the furthest-along AND furthest-behind item, since that's
 // what tells him where the bottleneck is.
 function summarizeOwnerOrder(items) {
@@ -44,6 +49,11 @@ function OwnerOrderCard({ order, onPress }) {
       <Text style={styles.customerName}>{order.customerName || "Unknown customer"}</Text>
       <Text style={styles.customerPhone}>{order.customerPhone || "—"}</Text>
       {!!order.customerEmail && <Text style={styles.customerPhone}>{order.customerEmail}</Text>}
+      {!!formatAddress(order.shippingAddress) && (
+        <Text style={styles.addressText} numberOfLines={2}>
+          {formatAddress(order.shippingAddress)}
+        </Text>
+      )}
       {!!order.aramexTrackings?.length && (
         <Text style={styles.trackingText} numberOfLines={1}>
           Aramex: {order.aramexTrackings.join(", ")}
@@ -73,7 +83,7 @@ function OwnerOrderCard({ order, onPress }) {
 
 const isDelivered = (order) => order.fulfilled || order.items.every((i) => i.status === "delivered");
 
-export default function OwnerOrderListScreen({ view = "orders", onNavigate, onOpenOrder, onLoggedOut }) {
+export default function OwnerOrderListScreen({ view = "orders", onNavigate, onOpenOrder, onLoggedOut, unreadNotifications = 0 }) {
   const [orders, setOrders] = useState([]);
   const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(true);
@@ -120,6 +130,7 @@ export default function OwnerOrderListScreen({ view = "orders", onNavigate, onOp
         onNavigate={onNavigate}
         showProfits
         confirmationsCount={pending.length}
+        unreadNotifications={unreadNotifications}
         onLogout={async () => { await ownerLogout(); onLoggedOut(); }}
       />
 
@@ -215,6 +226,7 @@ const styles = StyleSheet.create({
   pillText: { fontSize: 11, fontWeight: "700" },
   customerName: { fontSize: 13, fontWeight: "600", color: colors.text, marginTop: spacing.md },
   customerPhone: { fontSize: 12, color: colors.mutedText },
+  addressText: { fontSize: 12, color: colors.text, marginTop: spacing.xs },
   trackingText: { fontSize: 12, color: colors.primary, fontWeight: "600", marginTop: spacing.sm },
   metaRow: {
     flexDirection: "row",

@@ -4,7 +4,12 @@ import { colors, spacing, radius, STATUS_STEPS, STATUS_META, formatAmount } from
 import Sidebar from "../components/Sidebar";
 import StatusTracker from "../components/StatusTracker";
 
-export default function OwnerOrderDetailScreen({ order, onBack, onLoggedOut, view = "orders", onNavigate }) {
+function formatAddress(addr) {
+  if (!addr) return "";
+  return [addr.address1, addr.address2, addr.city, addr.country].filter(Boolean).join(", ");
+}
+
+export default function OwnerOrderDetailScreen({ order, onBack, onLoggedOut, view = "orders", onNavigate, unreadNotifications = 0 }) {
   const totalCostAED = order.totalCostAED || 0;
   const totalFeesAED = order.totalShippingFeesAED || 0;
   const paymentGatewayFeeAED = order.paymentGatewayFeeAED || 0;
@@ -14,7 +19,7 @@ export default function OwnerOrderDetailScreen({ order, onBack, onLoggedOut, vie
 
   return (
     <View style={styles.page}>
-      <Sidebar active={view} onNavigate={onNavigate} showProfits onLogout={onLoggedOut} />
+      <Sidebar active={view} onNavigate={onNavigate} showProfits unreadNotifications={unreadNotifications} onLogout={onLoggedOut} />
 
       <ScrollView style={styles.main} contentContainerStyle={{ padding: spacing.lg }}>
         <Pressable onPress={onBack}>
@@ -35,6 +40,10 @@ export default function OwnerOrderDetailScreen({ order, onBack, onLoggedOut, vie
             <View>
               <Text style={styles.headerLabel}>EMAIL</Text>
               <Text style={styles.headerValue}>{order.customerEmail || "—"}</Text>
+            </View>
+            <View>
+              <Text style={styles.headerLabel}>ADDRESS</Text>
+              <Text style={styles.headerValue}>{formatAddress(order.shippingAddress) || "—"}</Text>
             </View>
             <View>
               <Text style={styles.headerLabel}>SOLD FOR</Text>

@@ -24,6 +24,11 @@ function formatMoney(amount, currency) {
   return `${currency || "AED"} ${formatAmount(amount)}`;
 }
 
+function formatAddress(addr) {
+  if (!addr) return "";
+  return [addr.address1, addr.address2, addr.city, addr.country].filter(Boolean).join(", ");
+}
+
 function OrderCard({ order, onPress }) {
   const summary = summarizeOrder(order.items);
   return (
@@ -48,6 +53,12 @@ function OrderCard({ order, onPress }) {
           {!!order.customerEmail && <Text style={styles.customerEmail}>{order.customerEmail}</Text>}
         </View>
       </View>
+
+      {!!formatAddress(order.shippingAddress) && (
+        <Text style={styles.addressText} numberOfLines={2}>
+          {formatAddress(order.shippingAddress)}
+        </Text>
+      )}
 
       {!!order.aramexTrackings?.length && (
         <Text style={styles.trackingText} numberOfLines={1}>
@@ -204,6 +215,7 @@ const styles = StyleSheet.create({
   customerName: { fontSize: 13, fontWeight: "600", color: colors.text },
   customerPhone: { fontSize: 12, color: colors.mutedText },
   customerEmail: { fontSize: 11, color: colors.mutedText, marginTop: 1 },
+  addressText: { fontSize: 12, color: colors.text, marginTop: spacing.sm },
   trackingText: { fontSize: 12, color: colors.primary, fontWeight: "600", marginTop: spacing.sm },
   metaRow: {
     flexDirection: "row",

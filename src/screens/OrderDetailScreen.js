@@ -5,6 +5,11 @@ import Sidebar from "../components/Sidebar";
 import StatusTracker from "../components/StatusTracker";
 import { markOrderFulfilled } from "../api";
 
+function formatAddress(addr) {
+  if (!addr) return "";
+  return [addr.address1, addr.address2, addr.city, addr.country].filter(Boolean).join(", ");
+}
+
 export default function OrderDetailScreen({ order, onBack, onLoggedOut, view = "orders", onNavigate }) {
   const [fulfilling, setFulfilling] = useState(false);
   const [error, setError] = useState("");
@@ -62,6 +67,10 @@ export default function OrderDetailScreen({ order, onBack, onLoggedOut, view = "
             <View>
               <Text style={styles.headerLabel}>EMAIL</Text>
               <Text style={styles.headerValue}>{order.customerEmail || "—"}</Text>
+            </View>
+            <View>
+              <Text style={styles.headerLabel}>ADDRESS</Text>
+              <Text style={styles.headerValue}>{formatAddress(order.shippingAddress) || "—"}</Text>
             </View>
           </View>
         </View>

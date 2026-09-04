@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { StatusBar } from "expo-status-bar";
 import { View, ActivityIndicator, Platform } from "react-native";
-import { getStoredToken, getOwnerToken } from "./src/api";
+import { getStoredToken, getOwnerToken, fetchNotifications } from "./src/api";
 import { colors } from "./src/theme";
 import PinLoginScreen from "./src/screens/PinLoginScreen";
 import OrderListScreen from "./src/screens/OrderListScreen";
@@ -11,6 +11,7 @@ import OwnerOrderDetailScreen from "./src/screens/OwnerOrderDetailScreen";
 import OwnerProfitsScreen from "./src/screens/OwnerProfitsScreen";
 import OwnerConfirmationsScreen from "./src/screens/OwnerConfirmationsScreen";
 import StockScreen from "./src/screens/StockScreen";
+import NotificationsScreen from "./src/screens/NotificationsScreen";
 
 // Owner dashboard (Hatim's full-detail view) is reached via ?owner=1 on web —
 // same app, same PIN-pad component, different backend role. Not applicable
@@ -24,10 +25,11 @@ export default function App() {
   const [loggedIn, setLoggedIn] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [view, setView] = useState("orders");
+  const [unreadNotifications, setUnreadNotifications] = useState(0);
 
   const handleNavigate = (key) => {
     const validKeys = isOwnerMode
-      ? ["orders", "history", "profits", "confirmations", "stock"]
+      ? ["orders", "history", "profits", "confirmations", "stock", "notifications"]
       : ["orders", "history", "stock"];
     if (!validKeys.includes(key)) return;
     setView(key);
@@ -40,6 +42,16 @@ export default function App() {
       setCheckingSession(false);
     });
   }, []);
+
+  // Owner-only unread badge, polled so it stays current without the owner
+  // needing to open the Notifications screen to find out something arrived.
+  useEffect(() => {
+    if (!isOwnerMode || !loggedIn) return;
+    const load = () => fetchNotifications().then((d) => setUnreadNotifications(d.unreadCount)).catch(() => {});
+    load();
+    const interval = setInterval(load, 60000);
+    return () => clearInterval(interval);
+  }, [loggedIn]);
 
   const handleLoggedOut = () => {
     setLoggedIn(false);
@@ -68,11 +80,13 @@ export default function App() {
     return (
       <>
         {view === "profits" ? (
-          <OwnerProfitsScreen view={view} onNavigate={handleNavigate} onLoggedOut={handleLoggedOut} />
+          <OwnerProfitsScreen view={view} onNavigate={handleNavigate} onLoggedOut={handleLoggedOut} unreadNotifications={unreadNotifications} />
         ) : view === "confirmations" ? (
-          <OwnerConfirmationsScreen view={view} onNavigate={handleNavigate} onLoggedOut={handleLoggedOut} />
+          <OwnerConfirmationsScreen view={view} onNavigate={handleNavigate} onLoggedOut={handleLoggedOut} unreadNotifications={unreadNotifications} />
+        ) : view === "notifications" ? (
+          <NotificationsScreen view={view} onNavigate={handleNavigate} onLoggedOut={handleLoggedOut} />
         ) : view === "stock" ? (
-          <StockScreen view={view} onNavigate={handleNavigate} onLoggedOut={handleLoggedOut} isOwner />
+          <StockScreen view={view} onNavigate={handleNavigate} onLoggedOut={handleLoggedOut} isOwner unreadNotifications={unreadNotifications} />
         ) : selectedOrder ? (
           <OwnerOrderDetailScreen
             order={selectedOrder}
@@ -80,6 +94,7 @@ export default function App() {
             onLoggedOut={handleLoggedOut}
             view={view}
             onNavigate={handleNavigate}
+            unreadNotifications={unreadNotifications}
           />
         ) : (
           <OwnerOrderListScreen
@@ -87,6 +102,7 @@ export default function App() {
             onNavigate={handleNavigate}
             onOpenOrder={setSelectedOrder}
             onLoggedOut={handleLoggedOut}
+            unreadNotifications={unreadNotifications}
           />
         )}
         <StatusBar style="auto" />

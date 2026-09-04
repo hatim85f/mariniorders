@@ -14,13 +14,27 @@ const NAV_ITEMS = [
   { key: "settings", label: "Settings", enabled: false },
 ];
 
-export default function Sidebar({ active, onNavigate, onLogout, showProfits = false, confirmationsCount = 0 }) {
+export default function Sidebar({ active, onNavigate, onLogout, showProfits = false, confirmationsCount = 0, unreadNotifications = 0 }) {
   const items = NAV_ITEMS.filter((item) => !item.ownerOnly || showProfits);
   return (
     <View style={styles.sidebar}>
       <View>
-        <Text style={styles.brand}>Janmarini</Text>
-        <Text style={styles.brandSub}>Tracking Dashboard</Text>
+        <View style={styles.brandRow}>
+          <View>
+            <Text style={styles.brand}>Janmarini</Text>
+            <Text style={styles.brandSub}>Tracking Dashboard</Text>
+          </View>
+          {showProfits && (
+            <Pressable onPress={() => onNavigate?.("notifications")} style={styles.bellButton}>
+              <Text style={styles.bellIcon}>🔔</Text>
+              {unreadNotifications > 0 && (
+                <View style={styles.bellBadge}>
+                  <Text style={styles.navBadgeText}>{unreadNotifications > 9 ? "9+" : unreadNotifications}</Text>
+                </View>
+              )}
+            </Pressable>
+          )}
+        </View>
 
         <View style={styles.nav}>
           {items.map((item) => (
@@ -68,8 +82,23 @@ const styles = StyleSheet.create({
     padding: spacing.lg,
     justifyContent: "space-between",
   },
+  brandRow: { flexDirection: "row", alignItems: "flex-start", justifyContent: "space-between" },
   brand: { fontSize: 18, fontWeight: "700", color: colors.primary },
   brandSub: { fontSize: 11, color: colors.mutedText, marginBottom: spacing.lg },
+  bellButton: { padding: 4 },
+  bellIcon: { fontSize: 18 },
+  bellBadge: {
+    position: "absolute",
+    top: -2,
+    right: -2,
+    backgroundColor: colors.danger,
+    borderRadius: 999,
+    minWidth: 16,
+    height: 16,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 3,
+  },
   nav: { marginTop: spacing.md },
   navItem: { paddingVertical: spacing.sm, paddingHorizontal: spacing.sm, borderRadius: radius - 4, marginBottom: 2 },
   navItemActive: { backgroundColor: colors.primary + "18" },

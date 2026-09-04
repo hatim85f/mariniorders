@@ -25,7 +25,7 @@ function orderAllInCost(order) {
   );
 }
 
-export default function OwnerProfitsScreen({ view = "profits", onNavigate, onLoggedOut }) {
+export default function OwnerProfitsScreen({ view = "profits", onNavigate, onLoggedOut, unreadNotifications = 0 }) {
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -103,7 +103,7 @@ export default function OwnerProfitsScreen({ view = "profits", onNavigate, onLog
 
   return (
     <View style={styles.page}>
-      <Sidebar active={view} onNavigate={onNavigate} showProfits onLogout={async () => { await ownerLogout(); onLoggedOut(); }} />
+      <Sidebar active={view} onNavigate={onNavigate} showProfits unreadNotifications={unreadNotifications} onLogout={async () => { await ownerLogout(); onLoggedOut(); }} />
 
       <ScrollView style={styles.main} contentContainerStyle={{ padding: spacing.lg }}>
         <View style={styles.topRow}>
