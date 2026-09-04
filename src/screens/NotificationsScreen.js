@@ -1,8 +1,15 @@
 import React, { useEffect, useState, useCallback } from "react";
-import { View, Text, Pressable, StyleSheet, ScrollView, ActivityIndicator, Linking } from "react-native";
+import { View, Text, Pressable, StyleSheet, ScrollView, ActivityIndicator, Linking, Image } from "react-native";
 import { colors, spacing, radius } from "../theme";
 import { fetchNotifications, markNotificationRead, markAllNotificationsRead, ownerLogout } from "../api";
 import Sidebar from "../components/Sidebar";
+
+// eBay's own email-header logo asset -- same URL eBay serves in its own
+// transactional emails, used here purely as a source badge so an eBay-origin
+// notification is recognizable at a glance.
+const SOURCE_LOGOS = {
+  ebay: "https://p.ebaystatic.com/aw/email/eBayLogo.png",
+};
 
 function formatDate(dateStr) {
   if (!dateStr) return "";
@@ -10,9 +17,11 @@ function formatDate(dateStr) {
 }
 
 function NotificationCard({ item, onOpen }) {
+  const logo = SOURCE_LOGOS[item.source];
   return (
     <Pressable onPress={() => onOpen(item)} style={[styles.card, !item.read && styles.cardUnread]}>
       {!item.read && <View style={styles.dot} />}
+      {!!logo && <Image source={{ uri: logo }} style={styles.sourceLogo} resizeMode="contain" />}
       <View style={styles.cardBody}>
         <Text style={styles.cardMessage}>{item.message}</Text>
         <View style={styles.cardMetaRow}>
@@ -143,6 +152,7 @@ const styles = StyleSheet.create({
   },
   cardUnread: { borderColor: colors.primary + "55", backgroundColor: colors.primary + "08" },
   dot: { width: 8, height: 8, borderRadius: 4, backgroundColor: colors.primary, marginTop: 6 },
+  sourceLogo: { width: 36, height: 18, marginTop: 3 },
   cardBody: { flex: 1 },
   cardMessage: { fontSize: 14, color: colors.text, fontWeight: "600" },
   cardMetaRow: { flexDirection: "row", gap: spacing.md, marginTop: 4 },
