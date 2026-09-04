@@ -4,6 +4,7 @@ import { colors, spacing, radius } from "../theme";
 import Sidebar from "../components/Sidebar";
 import StatusTracker from "../components/StatusTracker";
 import { markOrderFulfilled } from "../api";
+import { printOrderLabels } from "../printLabels";
 
 function formatAddress(addr) {
   if (!addr) return "";
@@ -40,19 +41,24 @@ export default function OrderDetailScreen({ order, onBack, onLoggedOut, view = "
         <View style={styles.headerCard}>
           <View style={styles.headerTopRow}>
             <Text style={styles.orderTitle}>Order {order.orderNumber}</Text>
-            {fulfilled ? (
-              <View style={styles.fulfilledPill}>
-                <Text style={styles.fulfilledPillText}>✓ Fulfilled</Text>
-              </View>
-            ) : (
-              <Pressable
-                onPress={handleMarkFulfilled}
-                disabled={fulfilling}
-                style={({ pressed }) => [styles.fulfillBtn, pressed && styles.fulfillBtnPressed]}
-              >
-                {fulfilling ? <ActivityIndicator color="#fff" /> : <Text style={styles.fulfillBtnText}>Mark Fulfilled</Text>}
+            <View style={styles.headerActions}>
+              <Pressable onPress={() => printOrderLabels(order)} style={styles.printBtn}>
+                <Text style={styles.printBtnText}>🖨 Print Address Details</Text>
               </Pressable>
-            )}
+              {fulfilled ? (
+                <View style={styles.fulfilledPill}>
+                  <Text style={styles.fulfilledPillText}>✓ Fulfilled</Text>
+                </View>
+              ) : (
+                <Pressable
+                  onPress={handleMarkFulfilled}
+                  disabled={fulfilling}
+                  style={({ pressed }) => [styles.fulfillBtn, pressed && styles.fulfillBtnPressed]}
+                >
+                  {fulfilling ? <ActivityIndicator color="#fff" /> : <Text style={styles.fulfillBtnText}>Mark Fulfilled</Text>}
+                </Pressable>
+              )}
+            </View>
           </View>
           {!!error && <Text style={styles.error}>{error}</Text>}
           <View style={styles.headerCols}>
@@ -138,6 +144,15 @@ const styles = StyleSheet.create({
   itemQty: { fontSize: 12, color: colors.mutedText, marginTop: 2 },
   trackingText: { fontSize: 12, color: colors.primary, marginTop: 4, fontWeight: "600" },
   etaText: { fontSize: 12, color: colors.secondaryTeal, marginTop: 4, fontWeight: "600" },
+  headerActions: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
+  printBtn: {
+    borderWidth: 1,
+    borderColor: colors.primary,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderRadius: radius - 4,
+  },
+  printBtnText: { color: colors.primary, fontWeight: "700", fontSize: 13 },
   fulfillBtn: {
     backgroundColor: colors.primary,
     paddingHorizontal: spacing.md,

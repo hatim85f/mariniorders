@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, ScrollView, Image, Pressable } from "react-nati
 import { colors, spacing, radius, STATUS_STEPS, STATUS_META, formatAmount } from "../theme";
 import Sidebar from "../components/Sidebar";
 import StatusTracker from "../components/StatusTracker";
+import { printOrderLabels } from "../printLabels";
 
 function formatAddress(addr) {
   if (!addr) return "";
@@ -27,7 +28,12 @@ export default function OwnerOrderDetailScreen({ order, onBack, onLoggedOut, vie
         </Pressable>
 
         <View style={styles.headerCard}>
-          <Text style={styles.orderTitle}>Order {order.orderNumber}</Text>
+          <View style={styles.headerTopRow}>
+            <Text style={styles.orderTitle}>Order {order.orderNumber}</Text>
+            <Pressable onPress={() => printOrderLabels(order)} style={styles.printBtn}>
+              <Text style={styles.printBtnText}>🖨 Print Address Details</Text>
+            </Pressable>
+          </View>
           <View style={styles.headerCols}>
             <View>
               <Text style={styles.headerLabel}>CUSTOMER</Text>
@@ -128,7 +134,16 @@ const styles = StyleSheet.create({
     padding: spacing.lg,
     marginBottom: spacing.lg,
   },
-  orderTitle: { fontSize: 20, fontWeight: "700", color: colors.text, marginBottom: spacing.md },
+  headerTopRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: spacing.md },
+  orderTitle: { fontSize: 20, fontWeight: "700", color: colors.text },
+  printBtn: {
+    borderWidth: 1,
+    borderColor: colors.primary,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderRadius: radius - 4,
+  },
+  printBtnText: { color: colors.primary, fontWeight: "700", fontSize: 13 },
   headerCols: { flexDirection: "row", gap: spacing.xl, flexWrap: "wrap" },
   headerLabel: { fontSize: 10, color: colors.mutedText, letterSpacing: 0.5, marginBottom: 2 },
   headerValue: { fontSize: 14, fontWeight: "600", color: colors.text },
