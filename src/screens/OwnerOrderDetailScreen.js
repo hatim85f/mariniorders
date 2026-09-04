@@ -82,10 +82,13 @@ export default function OwnerOrderDetailScreen({ order, onBack, onLoggedOut, vie
           </View>
         </View>
 
-        <Text style={styles.itemsHeading}>Order Items ({order.items.length})</Text>
+        <View style={styles.itemsHeadingRow}>
+          <View style={styles.itemsHeadingAccent} />
+          <Text style={styles.itemsHeading}>Order Items ({order.items.length})</Text>
+        </View>
 
         {order.items.map((item, idx) => (
-          <View key={idx} style={styles.itemCard}>
+          <View key={idx} style={[styles.itemCard, { borderLeftColor: (STATUS_META[item.status] || STATUS_META.ordered).color }]}>
             <View style={styles.itemTopRow}>
               {item.image ? (
                 <Image source={{ uri: item.image }} style={styles.itemImage} />
@@ -131,8 +134,14 @@ const styles = StyleSheet.create({
     borderRadius: radius,
     borderWidth: 1,
     borderColor: colors.border,
+    borderTopWidth: 4,
+    borderTopColor: colors.primary,
     padding: spacing.lg,
     marginBottom: spacing.lg,
+    shadowColor: "#4F46E5",
+    shadowOpacity: 0.06,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 4 },
   },
   headerTopRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: spacing.md },
   orderTitle: { fontSize: 20, fontWeight: "700", color: colors.text },
@@ -145,18 +154,25 @@ const styles = StyleSheet.create({
   },
   printBtnText: { color: colors.primary, fontWeight: "700", fontSize: 13 },
   headerCols: { flexDirection: "row", gap: spacing.xl, flexWrap: "wrap" },
-  headerLabel: { fontSize: 10, color: colors.mutedText, letterSpacing: 0.5, marginBottom: 2 },
+  headerLabel: { fontSize: 10, color: colors.primary, fontWeight: "700", letterSpacing: 0.5, marginBottom: 2 },
   headerValue: { fontSize: 14, fontWeight: "600", color: colors.text },
   headerValueCost: { fontSize: 14, fontWeight: "700", color: colors.secondaryTeal },
   headerValueNegative: { color: colors.danger },
-  itemsHeading: { fontSize: 15, fontWeight: "700", color: colors.text, marginBottom: spacing.md },
+  itemsHeadingRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm, marginBottom: spacing.md },
+  itemsHeadingAccent: { width: 4, height: 16, borderRadius: 2, backgroundColor: colors.secondaryTeal },
+  itemsHeading: { fontSize: 15, fontWeight: "700", color: colors.text },
   itemCard: {
     backgroundColor: colors.surface,
     borderRadius: radius,
     borderWidth: 1,
     borderColor: colors.border,
+    borderLeftWidth: 4,
     padding: spacing.md,
     marginBottom: spacing.md,
+    shadowColor: "#0F172A",
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 2 },
   },
   itemTopRow: { flexDirection: "row", alignItems: "flex-start" },
   itemImage: { width: 80, height: 80, borderRadius: 12, marginRight: spacing.md, backgroundColor: colors.background },

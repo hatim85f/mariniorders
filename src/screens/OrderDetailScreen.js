@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { View, Text, Pressable, StyleSheet, ScrollView, Image, ActivityIndicator } from "react-native";
-import { colors, spacing, radius } from "../theme";
+import { colors, spacing, radius, EMPLOYEE_STATUS_META } from "../theme";
 import Sidebar from "../components/Sidebar";
 import StatusTracker from "../components/StatusTracker";
 import { markOrderFulfilled } from "../api";
@@ -81,30 +81,36 @@ export default function OrderDetailScreen({ order, onBack, onLoggedOut, view = "
           </View>
         </View>
 
-        <Text style={styles.itemsHeading}>Order Items ({order.items.length})</Text>
+        <View style={styles.itemsHeadingRow}>
+          <View style={styles.itemsHeadingAccent} />
+          <Text style={styles.itemsHeading}>Order Items ({order.items.length})</Text>
+        </View>
 
-        {order.items.map((item, idx) => (
-          <View key={idx} style={styles.itemCard}>
-            <View style={styles.itemTopRow}>
-              {item.image ? (
-                <Image source={{ uri: item.image }} style={styles.itemImage} />
-              ) : (
-                <View style={[styles.itemImage, styles.itemImagePlaceholder]}>
-                  <Text style={styles.itemImagePlaceholderText}>{item.name?.[0] || "?"}</Text>
-                </View>
-              )}
-              <View style={{ flex: 1 }}>
-                <Text style={styles.itemName}>{item.name}</Text>
-                <Text style={styles.itemQty}>Quantity: {item.quantity}</Text>
-                {!!item.aramexTracking && (
-                  <Text style={styles.trackingText}>Aramex tracking: {item.aramexTracking}</Text>
+        {order.items.map((item, idx) => {
+          const meta = EMPLOYEE_STATUS_META[fulfilled ? "delivered" : item.status] || EMPLOYEE_STATUS_META.ordered;
+          return (
+            <View key={idx} style={[styles.itemCard, { borderLeftColor: meta.color }]}>
+              <View style={styles.itemTopRow}>
+                {item.image ? (
+                  <Image source={{ uri: item.image }} style={styles.itemImage} />
+                ) : (
+                  <View style={[styles.itemImage, styles.itemImagePlaceholder]}>
+                    <Text style={styles.itemImagePlaceholderText}>{item.name?.[0] || "?"}</Text>
+                  </View>
                 )}
-                {!fulfilled && !!item.etaNote && <Text style={styles.etaText}>{item.etaNote}</Text>}
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.itemName}>{item.name}</Text>
+                  <Text style={styles.itemQty}>Quantity: {item.quantity}</Text>
+                  {!!item.aramexTracking && (
+                    <Text style={styles.trackingText}>Aramex tracking: {item.aramexTracking}</Text>
+                  )}
+                  {!fulfilled && !!item.etaNote && <Text style={styles.etaText}>{item.etaNote}</Text>}
+                </View>
               </View>
+              <StatusTracker status={fulfilled ? "delivered" : item.status} />
             </View>
-            <StatusTracker status={fulfilled ? "delivered" : item.status} />
-          </View>
-        ))}
+          );
+        })}
       </ScrollView>
     </View>
   );
@@ -119,22 +125,35 @@ const styles = StyleSheet.create({
     borderRadius: radius,
     borderWidth: 1,
     borderColor: colors.border,
+    borderTopWidth: 4,
+    borderTopColor: colors.primary,
     padding: spacing.lg,
     marginBottom: spacing.lg,
+    shadowColor: "#4F46E5",
+    shadowOpacity: 0.06,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 4 },
   },
   headerTopRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: spacing.md },
   orderTitle: { fontSize: 20, fontWeight: "700", color: colors.text },
   headerCols: { flexDirection: "row", gap: spacing.xl, flexWrap: "wrap" },
-  headerLabel: { fontSize: 10, color: colors.mutedText, letterSpacing: 0.5, marginBottom: 2 },
+  headerLabel: { fontSize: 10, color: colors.primary, fontWeight: "700", letterSpacing: 0.5, marginBottom: 2 },
   headerValue: { fontSize: 14, fontWeight: "600", color: colors.text },
-  itemsHeading: { fontSize: 15, fontWeight: "700", color: colors.text, marginBottom: spacing.md },
+  itemsHeadingRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm, marginBottom: spacing.md },
+  itemsHeadingAccent: { width: 4, height: 16, borderRadius: 2, backgroundColor: colors.secondaryTeal },
+  itemsHeading: { fontSize: 15, fontWeight: "700", color: colors.text },
   itemCard: {
     backgroundColor: colors.surface,
     borderRadius: radius,
     borderWidth: 1,
     borderColor: colors.border,
+    borderLeftWidth: 4,
     padding: spacing.md,
     marginBottom: spacing.md,
+    shadowColor: "#0F172A",
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 2 },
   },
   itemTopRow: { flexDirection: "row", alignItems: "center" },
   itemImage: { width: 96, height: 96, borderRadius: 12, marginRight: spacing.md, backgroundColor: colors.background },
