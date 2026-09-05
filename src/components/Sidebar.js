@@ -14,7 +14,7 @@ const NAV_ITEMS = [
   { key: "settings", label: "Settings", enabled: false },
 ];
 
-export default function Sidebar({ active, onNavigate, onLogout, showProfits = false, confirmationsCount = 0, unreadNotifications = 0 }) {
+export default function Sidebar({ active, onNavigate, onLogout, showProfits = false, confirmationsCount = 0, unreadNotifications = 0, onSyncNow, syncing = false, syncMessage = "" }) {
   const items = NAV_ITEMS.filter((item) => !item.ownerOnly || showProfits);
   return (
     <View style={styles.sidebar}>
@@ -25,16 +25,22 @@ export default function Sidebar({ active, onNavigate, onLogout, showProfits = fa
             <Text style={styles.brandSub}>Tracking Dashboard</Text>
           </View>
           {showProfits && (
-            <Pressable onPress={() => onNavigate?.("notifications")} style={styles.bellButton}>
-              <Text style={styles.bellIcon}>🔔</Text>
-              {unreadNotifications > 0 && (
-                <View style={styles.bellBadge}>
-                  <Text style={styles.navBadgeText}>{unreadNotifications > 9 ? "9+" : unreadNotifications}</Text>
-                </View>
-              )}
-            </Pressable>
+            <View style={styles.headerActionsRow}>
+              <Pressable onPress={onSyncNow} disabled={syncing} style={styles.syncButton}>
+                <Text style={styles.syncIcon}>{syncing ? "⏳" : "🔄"}</Text>
+              </Pressable>
+              <Pressable onPress={() => onNavigate?.("notifications")} style={styles.bellButton}>
+                <Text style={styles.bellIcon}>🔔</Text>
+                {unreadNotifications > 0 && (
+                  <View style={styles.bellBadge}>
+                    <Text style={styles.navBadgeText}>{unreadNotifications > 9 ? "9+" : unreadNotifications}</Text>
+                  </View>
+                )}
+              </Pressable>
+            </View>
           )}
         </View>
+        {!!syncMessage && <Text style={styles.syncMessage}>{syncMessage}</Text>}
 
         <View style={styles.nav}>
           {items.map((item) => (
@@ -85,6 +91,10 @@ const styles = StyleSheet.create({
   brandRow: { flexDirection: "row", alignItems: "flex-start", justifyContent: "space-between" },
   brand: { fontSize: 18, fontWeight: "700", color: colors.primary },
   brandSub: { fontSize: 11, color: colors.mutedText, marginBottom: spacing.lg },
+  syncMessage: { fontSize: 10, color: colors.primary, marginTop: -spacing.md, marginBottom: spacing.sm },
+  headerActionsRow: { flexDirection: "row", alignItems: "center", gap: 4 },
+  syncButton: { padding: 4 },
+  syncIcon: { fontSize: 16 },
   bellButton: { padding: 4 },
   bellIcon: { fontSize: 18 },
   bellBadge: {

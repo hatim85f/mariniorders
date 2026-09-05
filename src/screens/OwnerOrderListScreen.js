@@ -83,7 +83,7 @@ function OwnerOrderCard({ order, onPress }) {
 
 const isDelivered = (order) => order.fulfilled || order.items.every((i) => i.status === "delivered");
 
-export default function OwnerOrderListScreen({ view = "orders", onNavigate, onOpenOrder, onLoggedOut, unreadNotifications = 0 }) {
+export default function OwnerOrderListScreen({ view = "orders", onNavigate, onOpenOrder, onLoggedOut, unreadNotifications = 0, onSyncNow, syncing = false, syncMessage = "" }) {
   const [orders, setOrders] = useState([]);
   const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(true);
@@ -131,6 +131,9 @@ export default function OwnerOrderListScreen({ view = "orders", onNavigate, onOp
         showProfits
         confirmationsCount={pending.length}
         unreadNotifications={unreadNotifications}
+        onSyncNow={onSyncNow}
+        syncing={syncing}
+        syncMessage={syncMessage}
         onLogout={async () => { await ownerLogout(); onLoggedOut(); }}
       />
 

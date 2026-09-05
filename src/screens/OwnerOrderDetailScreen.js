@@ -10,7 +10,7 @@ function formatAddress(addr) {
   return [addr.address1, addr.address2, addr.city, addr.country].filter(Boolean).join(", ");
 }
 
-export default function OwnerOrderDetailScreen({ order, onBack, onLoggedOut, view = "orders", onNavigate, unreadNotifications = 0 }) {
+export default function OwnerOrderDetailScreen({ order, onBack, onLoggedOut, view = "orders", onNavigate, unreadNotifications = 0, onSyncNow, syncing = false, syncMessage = "" }) {
   const totalCostAED = order.totalCostAED || 0;
   const totalFeesAED = order.totalShippingFeesAED || 0;
   const paymentGatewayFeeAED = order.paymentGatewayFeeAED || 0;
@@ -20,7 +20,7 @@ export default function OwnerOrderDetailScreen({ order, onBack, onLoggedOut, vie
 
   return (
     <View style={styles.page}>
-      <Sidebar active={view} onNavigate={onNavigate} showProfits unreadNotifications={unreadNotifications} onLogout={onLoggedOut} />
+      <Sidebar active={view} onNavigate={onNavigate} showProfits unreadNotifications={unreadNotifications} onSyncNow={onSyncNow} syncing={syncing} syncMessage={syncMessage} onLogout={onLoggedOut} />
 
       <ScrollView style={styles.main} contentContainerStyle={{ padding: spacing.lg }}>
         <Pressable onPress={onBack}>

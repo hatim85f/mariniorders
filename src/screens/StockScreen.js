@@ -244,7 +244,7 @@ function AddStockForm({ isOwner, onAdded }) {
   );
 }
 
-export default function StockScreen({ view = "stock", onNavigate, onLoggedOut, isOwner = false, unreadNotifications = 0 }) {
+export default function StockScreen({ view = "stock", onNavigate, onLoggedOut, isOwner = false, unreadNotifications = 0, onSyncNow, syncing = false, syncMessage = "" }) {
   const [items, setItems] = useState([]);
   const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(true);
@@ -284,6 +284,9 @@ export default function StockScreen({ view = "stock", onNavigate, onLoggedOut, i
         onNavigate={onNavigate}
         showProfits={isOwner}
         unreadNotifications={isOwner ? unreadNotifications : 0}
+        onSyncNow={isOwner ? onSyncNow : undefined}
+        syncing={syncing}
+        syncMessage={syncMessage}
         onLogout={async () => { await (isOwner ? ownerLogout() : logout()); onLoggedOut(); }}
       />
 

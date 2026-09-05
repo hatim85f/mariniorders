@@ -94,7 +94,7 @@ function ConfirmationCard({ receipt, onConfirm, onReject, busy }) {
   );
 }
 
-export default function OwnerConfirmationsScreen({ view = "confirmations", onNavigate, onLoggedOut, unreadNotifications = 0 }) {
+export default function OwnerConfirmationsScreen({ view = "confirmations", onNavigate, onLoggedOut, unreadNotifications = 0, onSyncNow, syncing = false, syncMessage = "" }) {
   const [pending, setPending] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -149,6 +149,9 @@ export default function OwnerConfirmationsScreen({ view = "confirmations", onNav
         showProfits
         confirmationsCount={pending.length}
         unreadNotifications={unreadNotifications}
+        onSyncNow={onSyncNow}
+        syncing={syncing}
+        syncMessage={syncMessage}
         onLogout={async () => { await ownerLogout(); onLoggedOut(); }}
       />
 

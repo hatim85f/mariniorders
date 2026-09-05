@@ -167,6 +167,17 @@ export async function markAllNotificationsRead() {
   return data;
 }
 
+export async function syncNow() {
+  const token = await getOwnerToken();
+  const res = await fetch(`${API_BASE_URL}/api/janmarini/owner/sync-now`, {
+    method: "POST",
+    headers: { "x-auth-token": token || "" },
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.message || "Sync failed");
+  return data;
+}
+
 // ---- Stock (unassigned inventory) ------------------------------------------
 // Shared between the employee and owner dashboards — pass isOwner so the
 // right token is sent (the backend only checks token validity here, not

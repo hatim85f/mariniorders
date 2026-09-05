@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { StatusBar } from "expo-status-bar";
 import { View, ActivityIndicator, Platform } from "react-native";
-import { getStoredToken, getOwnerToken, fetchNotifications } from "./src/api";
+import { getStoredToken, getOwnerToken, fetchNotifications, syncNow } from "./src/api";
 import { colors } from "./src/theme";
 import PinLoginScreen from "./src/screens/PinLoginScreen";
 import OrderListScreen from "./src/screens/OrderListScreen";
@@ -26,6 +26,23 @@ export default function App() {
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [view, setView] = useState("orders");
   const [unreadNotifications, setUnreadNotifications] = useState(0);
+  const [syncing, setSyncing] = useState(false);
+  const [syncMessage, setSyncMessage] = useState("");
+
+  const handleSyncNow = async () => {
+    if (syncing) return;
+    setSyncing(true);
+    setSyncMessage("");
+    try {
+      await syncNow();
+      setSyncMessage("Synced just now");
+    } catch (e) {
+      setSyncMessage(e.message || "Sync failed");
+    } finally {
+      setSyncing(false);
+      setTimeout(() => setSyncMessage(""), 4000);
+    }
+  };
 
   const handleNavigate = (key) => {
     const validKeys = isOwnerMode
@@ -80,13 +97,13 @@ export default function App() {
     return (
       <>
         {view === "profits" ? (
-          <OwnerProfitsScreen view={view} onNavigate={handleNavigate} onLoggedOut={handleLoggedOut} unreadNotifications={unreadNotifications} />
+          <OwnerProfitsScreen view={view} onNavigate={handleNavigate} onLoggedOut={handleLoggedOut} unreadNotifications={unreadNotifications} onSyncNow={handleSyncNow} syncing={syncing} syncMessage={syncMessage} />
         ) : view === "confirmations" ? (
-          <OwnerConfirmationsScreen view={view} onNavigate={handleNavigate} onLoggedOut={handleLoggedOut} unreadNotifications={unreadNotifications} />
+          <OwnerConfirmationsScreen view={view} onNavigate={handleNavigate} onLoggedOut={handleLoggedOut} unreadNotifications={unreadNotifications} onSyncNow={handleSyncNow} syncing={syncing} syncMessage={syncMessage} />
         ) : view === "notifications" ? (
-          <NotificationsScreen view={view} onNavigate={handleNavigate} onLoggedOut={handleLoggedOut} />
+          <NotificationsScreen view={view} onNavigate={handleNavigate} onLoggedOut={handleLoggedOut} onSyncNow={handleSyncNow} syncing={syncing} syncMessage={syncMessage} />
         ) : view === "stock" ? (
-          <StockScreen view={view} onNavigate={handleNavigate} onLoggedOut={handleLoggedOut} isOwner unreadNotifications={unreadNotifications} />
+          <StockScreen view={view} onNavigate={handleNavigate} onLoggedOut={handleLoggedOut} isOwner unreadNotifications={unreadNotifications} onSyncNow={handleSyncNow} syncing={syncing} syncMessage={syncMessage} />
         ) : selectedOrder ? (
           <OwnerOrderDetailScreen
             order={selectedOrder}
@@ -95,6 +112,9 @@ export default function App() {
             view={view}
             onNavigate={handleNavigate}
             unreadNotifications={unreadNotifications}
+            onSyncNow={handleSyncNow}
+            syncing={syncing}
+            syncMessage={syncMessage}
           />
         ) : (
           <OwnerOrderListScreen
@@ -103,6 +123,9 @@ export default function App() {
             onOpenOrder={setSelectedOrder}
             onLoggedOut={handleLoggedOut}
             unreadNotifications={unreadNotifications}
+            onSyncNow={handleSyncNow}
+            syncing={syncing}
+            syncMessage={syncMessage}
           />
         )}
         <StatusBar style="auto" />

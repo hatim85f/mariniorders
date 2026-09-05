@@ -42,7 +42,7 @@ function NotificationCard({ item, onOpen }) {
   );
 }
 
-export default function NotificationsScreen({ view = "notifications", onNavigate, onLoggedOut }) {
+export default function NotificationsScreen({ view = "notifications", onNavigate, onLoggedOut, onSyncNow, syncing = false, syncMessage = "" }) {
   const [items, setItems] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -90,7 +90,7 @@ export default function NotificationsScreen({ view = "notifications", onNavigate
 
   return (
     <View style={styles.page}>
-      <Sidebar active={view} onNavigate={onNavigate} showProfits unreadNotifications={unreadCount} onLogout={async () => { await ownerLogout(); onLoggedOut(); }} />
+      <Sidebar active={view} onNavigate={onNavigate} showProfits unreadNotifications={unreadCount} onSyncNow={onSyncNow} syncing={syncing} syncMessage={syncMessage} onLogout={async () => { await ownerLogout(); onLoggedOut(); }} />
 
       <View style={styles.main}>
         <View style={styles.headerRow}>
