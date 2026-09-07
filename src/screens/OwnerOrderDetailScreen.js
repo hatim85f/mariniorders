@@ -108,7 +108,7 @@ export default function OwnerOrderDetailScreen({ order, onBack, onLoggedOut, vie
                   <Text style={styles.costText}>Cost: AED {formatAmount(item.costAED)}</Text>
                   <Text style={styles.costText}>Shipping: AED {formatAmount(item.shippingFeesAED)} {item.feesPaid ? "✓ paid" : ""}</Text>
                 </View>
-                {!!item.aramexTracking && <Text style={styles.trackingText}>Aramex: {item.aramexTracking}</Text>}
+                {!!item.aramexTracking && <Text style={styles.trackingText}>{item.trackingCarrier === "dhl" ? "DHL" : "Aramex"}: {item.aramexTracking}</Text>}
                 {!!item.blockedReason ? (
                   <Text style={styles.actionText}>🚩 {item.etaNote}</Text>
                 ) : (

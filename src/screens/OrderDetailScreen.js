@@ -102,7 +102,7 @@ export default function OrderDetailScreen({ order, onBack, onLoggedOut, view = "
                   <Text style={styles.itemName}>{item.name}</Text>
                   <Text style={styles.itemQty}>Quantity: {item.quantity}</Text>
                   {!!item.aramexTracking && (
-                    <Text style={styles.trackingText}>Aramex tracking: {item.aramexTracking}</Text>
+                    <Text style={styles.trackingText}>{item.trackingCarrier === "dhl" ? "DHL" : "Aramex"} tracking: {item.aramexTracking}</Text>
                   )}
                   {!fulfilled && !!item.etaNote && <Text style={styles.etaText}>{item.etaNote}</Text>}
                 </View>

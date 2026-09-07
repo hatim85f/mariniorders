@@ -54,9 +54,9 @@ function OwnerOrderCard({ order, onPress }) {
           {formatAddress(order.shippingAddress)}
         </Text>
       )}
-      {!!order.aramexTrackings?.length && (
+      {!!order.trackingBadges?.length && (
         <Text style={styles.trackingText} numberOfLines={1}>
-          Aramex: {order.aramexTrackings.join(", ")}
+          {order.trackingBadges.join(", ")}
         </Text>
       )}
 
