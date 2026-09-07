@@ -178,6 +178,34 @@ export async function syncNow() {
   return data;
 }
 
+// ---- Upload Purchases -------------------------------------------------------
+
+export async function uploadPurchaseBill(file) {
+  const token = await getOwnerToken();
+  const form = new FormData();
+  form.append("bill", file);
+  const res = await fetch(`${API_BASE_URL}/api/janmarini/owner/purchases/upload`, {
+    method: "POST",
+    headers: { "x-auth-token": token || "" },
+    body: form,
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.message || "Failed to parse bill");
+  return data;
+}
+
+export async function confirmPurchaseAssignments(payload) {
+  const token = await getOwnerToken();
+  const res = await fetch(`${API_BASE_URL}/api/janmarini/owner/purchases/confirm`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "x-auth-token": token || "" },
+    body: JSON.stringify(payload),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.message || "Failed to save purchases");
+  return data;
+}
+
 // ---- Stock (unassigned inventory) ------------------------------------------
 // Shared between the employee and owner dashboards — pass isOwner so the
 // right token is sent (the backend only checks token validity here, not

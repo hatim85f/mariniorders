@@ -12,6 +12,7 @@ import OwnerProfitsScreen from "./src/screens/OwnerProfitsScreen";
 import OwnerConfirmationsScreen from "./src/screens/OwnerConfirmationsScreen";
 import StockScreen from "./src/screens/StockScreen";
 import NotificationsScreen from "./src/screens/NotificationsScreen";
+import UploadPurchasesScreen from "./src/screens/UploadPurchasesScreen";
 
 // Owner dashboard (Hatim's full-detail view) is reached via ?owner=1 on web —
 // same app, same PIN-pad component, different backend role. Not applicable
@@ -46,7 +47,7 @@ export default function App() {
 
   const handleNavigate = (key) => {
     const validKeys = isOwnerMode
-      ? ["orders", "history", "profits", "confirmations", "stock", "notifications"]
+      ? ["orders", "history", "profits", "confirmations", "stock", "notifications", "purchases"]
       : ["orders", "history", "stock"];
     if (!validKeys.includes(key)) return;
     setView(key);
@@ -104,6 +105,8 @@ export default function App() {
           <NotificationsScreen view={view} onNavigate={handleNavigate} onLoggedOut={handleLoggedOut} onSyncNow={handleSyncNow} syncing={syncing} syncMessage={syncMessage} />
         ) : view === "stock" ? (
           <StockScreen view={view} onNavigate={handleNavigate} onLoggedOut={handleLoggedOut} isOwner unreadNotifications={unreadNotifications} onSyncNow={handleSyncNow} syncing={syncing} syncMessage={syncMessage} />
+        ) : view === "purchases" ? (
+          <UploadPurchasesScreen view={view} onNavigate={handleNavigate} onLoggedOut={handleLoggedOut} unreadNotifications={unreadNotifications} onSyncNow={handleSyncNow} syncing={syncing} syncMessage={syncMessage} />
         ) : selectedOrder ? (
           <OwnerOrderDetailScreen
             order={selectedOrder}
