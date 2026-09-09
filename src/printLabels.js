@@ -1,12 +1,12 @@
-// Builds a two-label HTML sheet (address/phone/WhatsApp-QR label + order
-// items label) sized for a standard A4 sticker sheet pre-cut into two
-// labels, and sends it to the browser's print dialog -- the user picks
-// their actual printer (HP or otherwise) there; a web page can't target a
-// specific printer directly for security reasons.
+// Builds a single address/phone/WhatsApp-QR/courier-tracking label (the
+// order-contents second label was removed -- only the top half of the A4
+// sheet prints now) and sends it to the browser's print dialog -- the user
+// picks their actual printer (HP or otherwise) there; a web page can't
+// target a specific printer directly for security reasons.
 //
-// The two label heights below (128mm each, stacked with a small gap) assume
-// a generic 2-labels-per-A4 sheet. If your actual sticker sheet has
-// different label positions, adjust LABEL_HEIGHT/PAGE_MARGIN to match.
+// The label height below (128mm) assumes a generic 2-labels-per-A4 sticker
+// sheet, printing only the first slot. If your actual sheet has different
+// label positions, adjust LABEL_HEIGHT/PAGE_MARGIN to match.
 const PAGE_MARGIN_MM = 10;
 const LABEL_HEIGHT_MM = 128;
 const LABEL_GAP_MM = 8;
@@ -40,22 +40,20 @@ function escapeHtml(s) {
   return String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 }
 
-export function buildLabelsHtml(order) {
+export function buildLabelsHtml(order, shipment) {
   const addressLine = formatAddress(order.shippingAddress);
   const waLink = toWhatsAppLink(order.customerPhone);
   const qrUrl = waLink ? qrCodeUrl(waLink) : "";
   const phoneIconUri = svgDataUri(PHONE_ICON_SVG);
   const waIconUri = svgDataUri(WHATSAPP_ICON_SVG);
-
-  const itemsRows = (order.items || [])
-    .map((i) => `<tr><td>${escapeHtml(i.name)}</td><td class="qtyCell">${escapeHtml(i.quantity)}</td></tr>`)
-    .join("");
+  const courier = shipment?.courier || "";
+  const trackingNumber = shipment?.trackingNumber || "";
 
   return `<!DOCTYPE html>
 <html>
 <head>
 <meta charset="utf-8" />
-<title>Order ${escapeHtml(order.orderNumber)} Labels</title>
+<title>Order ${escapeHtml(order.orderNumber)} Label</title>
 <style>
   @page { size: A4; margin: ${PAGE_MARGIN_MM}mm; }
   * { box-sizing: border-box; }
@@ -69,7 +67,6 @@ export function buildLabelsHtml(order) {
     display: flex;
     flex-direction: column;
   }
-  .label + .label { margin-top: ${LABEL_GAP_MM}mm; }
   .accentBar { height: 3mm; background: #0F766D; flex-shrink: 0; }
   .labelBody { padding: 8mm; flex: 1; display: flex; flex-direction: column; justify-content: space-between; font-family: Arial, Helvetica, sans-serif; }
   .orderNo { font-size: 11px; color: #6B7280; letter-spacing: 1.5px; text-transform: uppercase; font-weight: 600; }
@@ -82,10 +79,11 @@ export function buildLabelsHtml(order) {
   .qrWrap { position: relative; }
   .qr { display: block; border: 1px solid #E2E8F0; border-radius: 2mm; }
   .waBadge { position: absolute; bottom: -4px; right: -4px; border-radius: 50%; border: 2px solid #fff; }
-  table { width: 100%; border-collapse: collapse; font-size: 15px; margin-top: 4mm; }
-  thead th { text-align: left; font-size: 11px; letter-spacing: 1px; text-transform: uppercase; color: #6B7280; font-weight: 600; padding-bottom: 6px; border-bottom: 2px solid #0F766D; }
-  td { border-bottom: 1px solid #EEF1F4; padding: 7px 0; color: #1F2937; }
-  .qtyCell { text-align: right; width: 60px; }
+  .shipmentBox { margin-top: 5mm; padding: 4mm 5mm; background: #F0FDFA; border: 1px solid #99F6E4; border-radius: 2mm; }
+  .shipmentRow { display: flex; justify-content: space-between; align-items: center; }
+  .shipmentLabel { font-size: 10px; letter-spacing: 1px; text-transform: uppercase; color: #0F766D; font-weight: 700; }
+  .shipmentValue { font-size: 20px; font-weight: 700; color: #0F172A; }
+  .courierValue { font-size: 15px; font-weight: 700; color: #0F766D; text-transform: uppercase; }
 </style>
 </head>
 <body>
@@ -97,25 +95,21 @@ export function buildLabelsHtml(order) {
         <div class="name">${escapeHtml(order.customerName || "Unknown customer")}</div>
         <div class="addr">${escapeHtml(addressLine)}</div>
       </div>
-      <div class="bottomRow">
-        <div class="phoneRow">
-          <img class="iconSm" src="${phoneIconUri}" />
-          <span class="phone">${escapeHtml(order.customerPhone || "")}</span>
-        </div>
-        ${qrUrl ? `<div class="qrWrap"><img class="qr" src="${qrUrl}" width="100" height="100" alt="WhatsApp QR" /><img class="waBadge" src="${waIconUri}" width="28" height="28" /></div>` : ""}
-      </div>
-    </div>
-  </div>
-
-  <div class="label">
-    <div class="accentBar"></div>
-    <div class="labelBody">
       <div>
-        <div class="orderNo">Order Contents — ${escapeHtml(order.orderNumber)}</div>
-        <table>
-          <thead><tr><th>Item</th><th class="qtyCell">Qty</th></tr></thead>
-          <tbody>${itemsRows}</tbody>
-        </table>
+        ${(courier || trackingNumber) ? `<div class="shipmentBox">
+          <div class="shipmentRow">
+            <span class="courierValue">${escapeHtml(courier || "—")}</span>
+            <span class="shipmentValue">${escapeHtml(trackingNumber || "—")}</span>
+          </div>
+          <div class="shipmentLabel">Tracking Number</div>
+        </div>` : ""}
+        <div class="bottomRow">
+          <div class="phoneRow">
+            <img class="iconSm" src="${phoneIconUri}" />
+            <span class="phone">${escapeHtml(order.customerPhone || "")}</span>
+          </div>
+          ${qrUrl ? `<div class="qrWrap"><img class="qr" src="${qrUrl}" width="100" height="100" alt="WhatsApp QR" /><img class="waBadge" src="${waIconUri}" width="28" height="28" /></div>` : ""}
+        </div>
       </div>
     </div>
   </div>
@@ -126,8 +120,8 @@ export function buildLabelsHtml(order) {
 // Opens the HTML in a new tab and triggers the browser's print dialog. Must
 // be called synchronously from a click handler (the pattern used below) so
 // popup blockers treat it as a user-initiated action.
-export function printOrderLabels(order) {
-  const html = buildLabelsHtml(order);
+export function printOrderLabels(order, shipment) {
+  const html = buildLabelsHtml(order, shipment);
   const win = window.open("", "_blank", "width=850,height=1000");
   if (!win) {
     window.alert("Please allow pop-ups for this site to print labels.");

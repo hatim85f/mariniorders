@@ -4,6 +4,7 @@ import { colors, spacing, radius, STATUS_STEPS, STATUS_META, formatAmount } from
 import Sidebar from "../components/Sidebar";
 import StatusTracker from "../components/StatusTracker";
 import { printOrderLabels } from "../printLabels";
+import ShipmentPrintFields, { useShipmentPrintFields } from "../components/ShipmentPrintFields";
 
 function formatAddress(addr) {
   if (!addr) return "";
@@ -17,6 +18,7 @@ export default function OwnerOrderDetailScreen({ order, onBack, onLoggedOut, vie
   const shopifyFeeAED = order.shopifyFeeAED || 0;
   const deliveryFeeAED = order.deliveryFeeAED || 0;
   const profit = order.profit ?? 0;
+  const shipment = useShipmentPrintFields();
 
   return (
     <View style={styles.page}>
@@ -30,7 +32,15 @@ export default function OwnerOrderDetailScreen({ order, onBack, onLoggedOut, vie
         <View style={styles.headerCard}>
           <View style={styles.headerTopRow}>
             <Text style={styles.orderTitle}>Order {order.orderNumber}</Text>
-            <Pressable onPress={() => printOrderLabels(order)} style={styles.printBtn}>
+          </View>
+          <View style={styles.printRow}>
+            <ShipmentPrintFields
+              courier={shipment.courier}
+              trackingNumber={shipment.trackingNumber}
+              onCourierChange={shipment.setCourier}
+              onTrackingChange={shipment.setTrackingNumber}
+            />
+            <Pressable onPress={() => printOrderLabels(order, { courier: shipment.courier, trackingNumber: shipment.trackingNumber })} style={styles.printBtn}>
               <Text style={styles.printBtnText}>🖨 Print Address Details</Text>
             </Pressable>
           </View>
@@ -145,6 +155,7 @@ const styles = StyleSheet.create({
   },
   headerTopRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: spacing.md },
   orderTitle: { fontSize: 20, fontWeight: "700", color: colors.text },
+  printRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: spacing.sm, marginBottom: spacing.md },
   printBtn: {
     borderWidth: 1,
     borderColor: colors.primary,

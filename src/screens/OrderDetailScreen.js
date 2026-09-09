@@ -5,6 +5,7 @@ import Sidebar from "../components/Sidebar";
 import StatusTracker from "../components/StatusTracker";
 import { markOrderFulfilled } from "../api";
 import { printOrderLabels } from "../printLabels";
+import ShipmentPrintFields, { useShipmentPrintFields } from "../components/ShipmentPrintFields";
 
 function formatAddress(addr) {
   if (!addr) return "";
@@ -15,6 +16,7 @@ export default function OrderDetailScreen({ order, onBack, onLoggedOut, view = "
   const [fulfilling, setFulfilling] = useState(false);
   const [error, setError] = useState("");
   const [fulfilled, setFulfilled] = useState(order.fulfilled);
+  const shipment = useShipmentPrintFields();
 
   const handleMarkFulfilled = async () => {
     setFulfilling(true);
@@ -42,9 +44,6 @@ export default function OrderDetailScreen({ order, onBack, onLoggedOut, view = "
           <View style={styles.headerTopRow}>
             <Text style={styles.orderTitle}>Order {order.orderNumber}</Text>
             <View style={styles.headerActions}>
-              <Pressable onPress={() => printOrderLabels(order)} style={styles.printBtn}>
-                <Text style={styles.printBtnText}>🖨 Print Address Details</Text>
-              </Pressable>
               {fulfilled ? (
                 <View style={styles.fulfilledPill}>
                   <Text style={styles.fulfilledPillText}>✓ Fulfilled</Text>
@@ -59,6 +58,17 @@ export default function OrderDetailScreen({ order, onBack, onLoggedOut, view = "
                 </Pressable>
               )}
             </View>
+          </View>
+          <View style={styles.printRow}>
+            <ShipmentPrintFields
+              courier={shipment.courier}
+              trackingNumber={shipment.trackingNumber}
+              onCourierChange={shipment.setCourier}
+              onTrackingChange={shipment.setTrackingNumber}
+            />
+            <Pressable onPress={() => printOrderLabels(order, { courier: shipment.courier, trackingNumber: shipment.trackingNumber })} style={styles.printBtn}>
+              <Text style={styles.printBtnText}>🖨 Print Address Details</Text>
+            </Pressable>
           </View>
           {!!error && <Text style={styles.error}>{error}</Text>}
           <View style={styles.headerCols}>
@@ -164,6 +174,7 @@ const styles = StyleSheet.create({
   trackingText: { fontSize: 12, color: colors.primary, marginTop: 4, fontWeight: "600" },
   etaText: { fontSize: 12, color: colors.secondaryTeal, marginTop: 4, fontWeight: "600" },
   headerActions: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
+  printRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: spacing.sm, marginBottom: spacing.md },
   printBtn: {
     borderWidth: 1,
     borderColor: colors.primary,
