@@ -48,6 +48,7 @@ export function buildLabelsHtml(order, shipment) {
   const waIconUri = svgDataUri(WHATSAPP_ICON_SVG);
   const courier = shipment?.courier || "";
   const trackingNumber = shipment?.trackingNumber || "";
+  const collectionReference = shipment?.collectionReference || "";
 
   return `<!DOCTYPE html>
 <html>
@@ -83,7 +84,8 @@ export function buildLabelsHtml(order, shipment) {
   .shipmentRow { display: flex; justify-content: space-between; align-items: center; }
   .shipmentLabel { font-size: 10px; letter-spacing: 1px; text-transform: uppercase; color: #0F766D; font-weight: 700; }
   .shipmentValue { font-size: 20px; font-weight: 700; color: #0F172A; }
-  .courierValue { font-size: 15px; font-weight: 700; color: #0F766D; text-transform: uppercase; }
+  .courierValue { font-size: 15px; font-weight: 700; color: #0F766D; text-transform: uppercase; margin-bottom: 1mm; }
+  .shipmentSubRow { font-size: 11px; color: #6B7280; margin-top: 2mm; }
 </style>
 </head>
 <body>
@@ -96,12 +98,11 @@ export function buildLabelsHtml(order, shipment) {
         <div class="addr">${escapeHtml(addressLine)}</div>
       </div>
       <div>
-        ${(courier || trackingNumber) ? `<div class="shipmentBox">
-          <div class="shipmentRow">
-            <span class="courierValue">${escapeHtml(courier || "—")}</span>
-            <span class="shipmentValue">${escapeHtml(trackingNumber || "—")}</span>
-          </div>
-          <div class="shipmentLabel">Tracking Number</div>
+        ${(courier || trackingNumber || collectionReference) ? `<div class="shipmentBox">
+          ${courier ? `<div class="courierValue">${escapeHtml(courier)}</div>` : ""}
+          ${trackingNumber ? `<div class="shipmentRow"><span class="shipmentValue">${escapeHtml(trackingNumber)}</span></div><div class="shipmentLabel">Tracking Number</div>` : ""}
+          ${!trackingNumber && collectionReference ? `<div class="shipmentRow"><span class="shipmentValue">${escapeHtml(collectionReference)}</span></div><div class="shipmentLabel">Collection Reference (tracking # pending)</div>` : ""}
+          ${trackingNumber && collectionReference ? `<div class="shipmentSubRow">Collection ref: ${escapeHtml(collectionReference)}</div>` : ""}
         </div>` : ""}
         <div class="bottomRow">
           <div class="phoneRow">

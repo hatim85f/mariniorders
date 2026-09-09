@@ -63,10 +63,12 @@ export default function OrderDetailScreen({ order, onBack, onLoggedOut, view = "
             <ShipmentPrintFields
               courier={shipment.courier}
               trackingNumber={shipment.trackingNumber}
+              collectionReference={shipment.collectionReference}
               onCourierChange={shipment.setCourier}
               onTrackingChange={shipment.setTrackingNumber}
+              onCollectionRefChange={shipment.setCollectionReference}
             />
-            <Pressable onPress={() => printOrderLabels(order, { courier: shipment.courier, trackingNumber: shipment.trackingNumber })} style={styles.printBtn}>
+            <Pressable onPress={() => printOrderLabels(order, { courier: shipment.courier, trackingNumber: shipment.trackingNumber, collectionReference: shipment.collectionReference })} style={styles.printBtn}>
               <Text style={styles.printBtnText}>🖨 Print Address Details</Text>
             </Pressable>
           </View>

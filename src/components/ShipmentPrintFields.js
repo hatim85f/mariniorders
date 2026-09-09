@@ -6,11 +6,24 @@ import { colors, spacing, radius } from "../theme";
 // the address label -- lets the courier be identified on the printed label
 // itself so the delivery person can match parcels by tracking number when
 // several are out at once. Local state only, filled in fresh each print.
+//
+// Aramex often confirms a pickup with only a Collection Reference -- the
+// real Air Waybill/tracking number is issued later, sometimes after the
+// courier has already left. Collection Reference is a separate field (not a
+// fallback for tracking number) so the label can show it now and get
+// reprinted with the real tracking number once that arrives.
 const COURIERS = ["Aramex", "DHL", "Other"];
 
-export default function ShipmentPrintFields({ courier, trackingNumber, onCourierChange, onTrackingChange }) {
+export default function ShipmentPrintFields({
+  courier,
+  trackingNumber,
+  collectionReference,
+  onCourierChange,
+  onTrackingChange,
+  onCollectionRefChange,
+}) {
   return (
-    <View style={styles.row}>
+    <View style={styles.wrap}>
       <View style={styles.courierGroup}>
         {COURIERS.map((c) => (
           <Pressable
@@ -22,13 +35,22 @@ export default function ShipmentPrintFields({ courier, trackingNumber, onCourier
           </Pressable>
         ))}
       </View>
-      <TextInput
-        value={trackingNumber}
-        onChangeText={onTrackingChange}
-        placeholder="Tracking / waybill number"
-        placeholderTextColor={colors.mutedText}
-        style={styles.trackingInput}
-      />
+      <View style={styles.inputsRow}>
+        <TextInput
+          value={trackingNumber}
+          onChangeText={onTrackingChange}
+          placeholder="Tracking / waybill number"
+          placeholderTextColor={colors.mutedText}
+          style={styles.trackingInput}
+        />
+        <TextInput
+          value={collectionReference}
+          onChangeText={onCollectionRefChange}
+          placeholder="Collection reference (if no tracking # yet)"
+          placeholderTextColor={colors.mutedText}
+          style={styles.trackingInput}
+        />
+      </View>
     </View>
   );
 }
@@ -36,12 +58,14 @@ export default function ShipmentPrintFields({ courier, trackingNumber, onCourier
 export function useShipmentPrintFields() {
   const [courier, setCourier] = useState("");
   const [trackingNumber, setTrackingNumber] = useState("");
-  return { courier, trackingNumber, setCourier, setTrackingNumber };
+  const [collectionReference, setCollectionReference] = useState("");
+  return { courier, trackingNumber, collectionReference, setCourier, setTrackingNumber, setCollectionReference };
 }
 
 const styles = StyleSheet.create({
-  row: { flexDirection: "row", alignItems: "center", gap: spacing.sm, flexWrap: "wrap" },
+  wrap: { gap: spacing.xs },
   courierGroup: { flexDirection: "row", gap: 4 },
+  inputsRow: { flexDirection: "row", gap: spacing.sm, flexWrap: "wrap" },
   chip: {
     borderWidth: 1,
     borderColor: colors.border,
@@ -54,7 +78,7 @@ const styles = StyleSheet.create({
   chipTextActive: { color: "#fff" },
   trackingInput: {
     height: 30,
-    minWidth: 160,
+    minWidth: 170,
     borderRadius: radius - 6,
     borderWidth: 1,
     borderColor: colors.border,
