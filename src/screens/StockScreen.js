@@ -315,6 +315,7 @@ function AddStockForm({ isOwner, onAdded }) {
 export default function StockScreen({ view = "stock", onNavigate, onLoggedOut, isOwner = false, unreadNotifications = 0, onSyncNow, syncing = false, syncMessage = "" }) {
   const [items, setItems] = useState([]);
   const [query, setQuery] = useState("");
+  const [sortAsc, setSortAsc] = useState(true);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -336,15 +337,17 @@ export default function StockScreen({ view = "stock", onNavigate, onLoggedOut, i
     load();
   }, [load]);
 
-  const filtered = items.filter((item) => {
-    const q = query.trim().toLowerCase();
-    if (!q) return true;
-    return (
-      item.itemName.toLowerCase().includes(q) ||
-      (item.shopAndShipTracking || "").toLowerCase().includes(q) ||
-      (item.stockNote || "").toLowerCase().includes(q)
-    );
-  });
+  const filtered = items
+    .filter((item) => {
+      const q = query.trim().toLowerCase();
+      if (!q) return true;
+      return (
+        item.itemName.toLowerCase().includes(q) ||
+        (item.shopAndShipTracking || "").toLowerCase().includes(q) ||
+        (item.stockNote || "").toLowerCase().includes(q)
+      );
+    })
+    .sort((a, b) => (sortAsc ? a.itemName.localeCompare(b.itemName) : b.itemName.localeCompare(a.itemName)));
 
   return (
     <View style={styles.page}>
@@ -371,6 +374,9 @@ export default function StockScreen({ view = "stock", onNavigate, onLoggedOut, i
             placeholderTextColor={colors.mutedText}
             style={styles.search}
           />
+          <Pressable style={styles.sortBtn} onPress={() => setSortAsc((v) => !v)}>
+            <Text style={styles.sortBtnText}>{sortAsc ? "Sort A → Z" : "Sort Z → A"}</Text>
+          </Pressable>
         </View>
 
         <AddStockForm isOwner={isOwner} onAdded={load} />
@@ -415,7 +421,17 @@ const styles = StyleSheet.create({
   mainContent: { padding: spacing.lg, paddingBottom: spacing.xl * 2 },
   heading: { fontSize: 22, fontWeight: "700", color: colors.text },
   subheading: { fontSize: 13, color: colors.mutedText, marginTop: 2, marginBottom: spacing.lg },
-  topBar: { flexDirection: "row", marginBottom: spacing.lg },
+  topBar: { flexDirection: "row", alignItems: "center", gap: spacing.sm, marginBottom: spacing.lg },
+  sortBtn: {
+    height: 40,
+    borderRadius: radius - 4,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+    paddingHorizontal: spacing.md,
+    justifyContent: "center",
+  },
+  sortBtnText: { fontSize: 13, fontWeight: "600", color: colors.text },
   search: {
     flex: 1,
     maxWidth: 420,
