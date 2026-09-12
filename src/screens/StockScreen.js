@@ -4,6 +4,37 @@ import { colors, spacing, radius, STATUS_META, formatAmount } from "../theme";
 import { fetchStock, addStockItem, updateStockItem, deleteStockItem, logout, ownerLogout } from "../api";
 import Sidebar from "../components/Sidebar";
 
+const EXPIRY_SOON_DAYS = 90;
+
+function formatExpiry(expiry) {
+  if (!expiry) return null;
+  const date = new Date(expiry);
+  const days = Math.round((date - new Date()) / (1000 * 60 * 60 * 24));
+  return {
+    label: date.toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" }),
+    soon: days <= EXPIRY_SOON_DAYS,
+    days,
+  };
+}
+
+function CategoryToggle({ value, onChange }) {
+  return (
+    <View style={styles.categoryToggle}>
+      {["retail", "professional"].map((c) => (
+        <Pressable
+          key={c}
+          style={[styles.categoryOption, value === c && styles.categoryOptionActive]}
+          onPress={() => onChange(c)}
+        >
+          <Text style={[styles.categoryOptionText, value === c && styles.categoryOptionTextActive]}>
+            {c === "retail" ? "Retail" : "Professional"}
+          </Text>
+        </Pressable>
+      ))}
+    </View>
+  );
+}
+
 // Unassigned inventory — items already bought (e.g. leftover from a
 // cancelled order) or logged by hand, not yet tied to a customer order.
 // Same screen for both dashboards; `isOwner` only toggles cost visibility
@@ -21,6 +52,8 @@ function StockRow({ item, isOwner, onChanged }) {
   const [tracking, setTracking] = useState(item.shopAndShipTracking || "");
   const [note, setNote] = useState(item.stockNote || "");
   const [cost, setCost] = useState(item.costUSD ? String(item.costUSD) : "");
+  const [expiry, setExpiry] = useState(item.expiry ? item.expiry.slice(0, 10) : "");
+  const [category, setCategory] = useState(item.category || "retail");
 
   const save = async () => {
     if (!itemName.trim()) {
@@ -37,6 +70,8 @@ function StockRow({ item, isOwner, onChanged }) {
           quantity: Number(quantity) || 1,
           shopAndShipTracking: tracking.trim(),
           stockNote: note.trim(),
+          expiry: expiry.trim() || null,
+          category,
           ...(isOwner ? { costUSD: Number(cost) || 0 } : {}),
         },
         isOwner
@@ -75,6 +110,10 @@ function StockRow({ item, isOwner, onChanged }) {
             <TextInput value={cost} onChangeText={setCost} placeholder="Cost (USD)" placeholderTextColor={colors.mutedText} keyboardType="numeric" style={[styles.input, styles.inputSmall]} />
           )}
         </View>
+        <View style={styles.formRow}>
+          <TextInput value={expiry} onChangeText={setExpiry} placeholder="Expiry (YYYY-MM-DD)" placeholderTextColor={colors.mutedText} style={[styles.input, styles.inputFlex]} />
+          <CategoryToggle value={category} onChange={setCategory} />
+        </View>
         <TextInput value={note} onChangeText={setNote} placeholder="Note (optional)" placeholderTextColor={colors.mutedText} style={styles.input} />
         {!!error && <Text style={styles.formError}>{error}</Text>}
         <View style={styles.formActions}>
@@ -89,16 +128,29 @@ function StockRow({ item, isOwner, onChanged }) {
     );
   }
 
+  const expiryInfo = formatExpiry(item.expiry);
+
   return (
     <View style={styles.row}>
       <View style={[styles.cell, styles.cellName]}>
-        <Text style={styles.itemName} numberOfLines={2}>{item.itemName}</Text>
+        <View style={styles.itemNameRow}>
+          <Text style={styles.itemName} numberOfLines={2}>{item.itemName}</Text>
+          {item.category === "professional" && (
+            <View style={styles.categoryBadge}>
+              <Text style={styles.categoryBadgeText}>Professional</Text>
+            </View>
+          )}
+        </View>
         {!!item.stockNote && <Text style={styles.note} numberOfLines={2}>{item.stockNote}</Text>}
         {!!error && <Text style={styles.formError}>{error}</Text>}
       </View>
       <View style={[styles.cell, styles.cellQty]}>
         <Text style={styles.cellLabel}>Qty</Text>
         <Text style={styles.cellValue}>{item.quantity}</Text>
+      </View>
+      <View style={[styles.cell, styles.cellTracking]}>
+        <Text style={styles.cellLabel}>Expiry</Text>
+        <Text style={[styles.cellValue, expiryInfo?.soon && styles.cellValueWarning]}>{expiryInfo?.label || "—"}</Text>
       </View>
       <View style={[styles.cell, styles.cellTracking]}>
         <Text style={styles.cellLabel}>Courier</Text>
@@ -142,10 +194,24 @@ function StockSummaryRow({ row }) {
   const [expanded, setExpanded] = useState(false);
   const hasAssigned = row.assigned > 0;
 
+  const expiryInfo = formatExpiry(row.nearestExpiry);
+
   return (
     <View style={styles.summaryRow}>
       <View style={styles.summaryTop}>
-        <Text style={styles.summaryName} numberOfLines={2}>{row.itemName}</Text>
+        <View style={styles.itemNameRow}>
+          <Text style={styles.summaryName} numberOfLines={2}>{row.itemName}</Text>
+          {row.category === "professional" && (
+            <View style={styles.categoryBadge}>
+              <Text style={styles.categoryBadgeText}>Professional</Text>
+            </View>
+          )}
+          {!!expiryInfo && (
+            <Text style={[styles.summaryExpiry, expiryInfo.soon && styles.cellValueWarning]}>
+              exp. {expiryInfo.label}
+            </Text>
+          )}
+        </View>
         <View style={styles.summaryCounts}>
           <View style={styles.summaryStat}>
             <Text style={styles.summaryStatValue}>{row.onHand}</Text>
@@ -185,6 +251,8 @@ function AddStockForm({ isOwner, onAdded }) {
   const [tracking, setTracking] = useState("");
   const [note, setNote] = useState("");
   const [cost, setCost] = useState("");
+  const [expiry, setExpiry] = useState("");
+  const [category, setCategory] = useState("retail");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
@@ -194,6 +262,8 @@ function AddStockForm({ isOwner, onAdded }) {
     setTracking("");
     setNote("");
     setCost("");
+    setExpiry("");
+    setCategory("retail");
   };
 
   const submit = async () => {
@@ -210,6 +280,8 @@ function AddStockForm({ isOwner, onAdded }) {
           quantity: Number(quantity) || 1,
           shopAndShipTracking: tracking.trim(),
           stockNote: note.trim(),
+          expiry: expiry.trim() || null,
+          category,
           ...(isOwner ? { costUSD: Number(cost) || 0 } : {}),
         },
         isOwner
@@ -269,6 +341,16 @@ function AddStockForm({ isOwner, onAdded }) {
           style={styles.input}
         />
       )}
+      <View style={styles.formRow}>
+        <TextInput
+          value={expiry}
+          onChangeText={setExpiry}
+          placeholder="Expiry (YYYY-MM-DD, optional)"
+          placeholderTextColor={colors.mutedText}
+          style={[styles.input, styles.inputFlex]}
+        />
+        <CategoryToggle value={category} onChange={setCategory} />
+      </View>
       <TextInput
         value={note}
         onChangeText={setNote}
@@ -338,7 +420,7 @@ export default function StockScreen({ view = "stock", onNavigate, onLoggedOut, i
         onLogout={async () => { await (isOwner ? ownerLogout() : logout()); onLoggedOut(); }}
       />
 
-      <View style={styles.main}>
+      <ScrollView style={styles.main} contentContainerStyle={styles.mainContent}>
         <Text style={styles.heading}>Available Stock</Text>
         <Text style={styles.subheading}>Items already bought but not tied to a current order.</Text>
 
@@ -375,28 +457,32 @@ export default function StockScreen({ view = "stock", onNavigate, onLoggedOut, i
         )}
 
         {!loading && !error && filtered.length > 0 && (
-          <ScrollView contentContainerStyle={styles.list}>
-            <View style={styles.listHeader}>
-              <Text style={[styles.headerCell, styles.cellName]}>Item</Text>
-              <Text style={[styles.headerCell, styles.cellQty]}>Qty</Text>
-              <Text style={[styles.headerCell, styles.cellTracking]}>Courier</Text>
-              {isOwner && <Text style={[styles.headerCell, styles.cellCost]}>Cost</Text>}
-              <Text style={[styles.headerCell, styles.cellStatus]}>Status</Text>
-              <Text style={[styles.headerCell, styles.cellActions]}></Text>
+          <ScrollView horizontal contentContainerStyle={styles.list}>
+            <View>
+              <View style={styles.listHeader}>
+                <Text style={[styles.headerCell, styles.cellName]}>Item</Text>
+                <Text style={[styles.headerCell, styles.cellQty]}>Qty</Text>
+                <Text style={[styles.headerCell, styles.cellTracking]}>Expiry</Text>
+                <Text style={[styles.headerCell, styles.cellTracking]}>Courier</Text>
+                {isOwner && <Text style={[styles.headerCell, styles.cellCost]}>Cost</Text>}
+                <Text style={[styles.headerCell, styles.cellStatus]}>Status</Text>
+                <Text style={[styles.headerCell, styles.cellActions]}></Text>
+              </View>
+              {filtered.map((item) => (
+                <StockRow key={item.id} item={item} isOwner={isOwner} onChanged={load} />
+              ))}
             </View>
-            {filtered.map((item) => (
-              <StockRow key={item.id} item={item} isOwner={isOwner} onChanged={load} />
-            ))}
           </ScrollView>
         )}
-      </View>
+      </ScrollView>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  page: { flex: 1, flexDirection: "row", backgroundColor: colors.background },
-  main: { flex: 1, padding: spacing.lg },
+  page: { flex: 1, flexDirection: "row", backgroundColor: colors.background, minHeight: 0 },
+  main: { flex: 1 },
+  mainContent: { padding: spacing.lg, paddingBottom: spacing.xl * 2 },
   heading: { fontSize: 22, fontWeight: "700", color: colors.text },
   subheading: { fontSize: 13, color: colors.mutedText, marginTop: 2, marginBottom: spacing.lg },
   topBar: { flexDirection: "row", marginBottom: spacing.lg },
@@ -456,11 +542,23 @@ const styles = StyleSheet.create({
   cellLabel: { fontSize: 10, color: colors.mutedText, marginBottom: 2 },
   cellValue: { fontSize: 13, color: colors.text, fontWeight: "500" },
   cellValueCost: { fontSize: 13, color: colors.secondaryTeal, fontWeight: "700" },
+  cellValueWarning: { color: colors.danger, fontWeight: "700" },
 
   itemName: { fontSize: 14, fontWeight: "700", color: colors.text },
+  itemNameRow: { flexDirection: "row", alignItems: "center", flexWrap: "wrap", gap: spacing.xs, flex: 1, minWidth: 180 },
   pill: { paddingHorizontal: spacing.sm, paddingVertical: 4, borderRadius: 999, alignSelf: "flex-start" },
   pillText: { fontSize: 11, fontWeight: "700" },
   note: { fontSize: 12, color: colors.mutedText, marginTop: 2, fontStyle: "italic" },
+
+  categoryBadge: { backgroundColor: colors.primary + "18", borderRadius: 999, paddingHorizontal: spacing.sm, paddingVertical: 2 },
+  categoryBadgeText: { fontSize: 10, fontWeight: "700", color: colors.primary },
+  summaryExpiry: { fontSize: 11, color: colors.mutedText, fontWeight: "600" },
+
+  categoryToggle: { flexDirection: "row", borderWidth: 1, borderColor: colors.border, borderRadius: radius - 4, overflow: "hidden" },
+  categoryOption: { paddingVertical: spacing.sm, paddingHorizontal: spacing.md, backgroundColor: colors.background },
+  categoryOptionActive: { backgroundColor: colors.primary },
+  categoryOptionText: { fontSize: 12, fontWeight: "600", color: colors.mutedText },
+  categoryOptionTextActive: { color: "#fff" },
 
   summarySection: { marginBottom: spacing.lg, maxWidth: 720 },
   summaryHeading: { fontSize: 13, fontWeight: "700", color: colors.text, marginBottom: spacing.sm, textTransform: "uppercase", letterSpacing: 0.5 },
