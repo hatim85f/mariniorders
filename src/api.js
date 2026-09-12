@@ -259,3 +259,30 @@ export async function deleteStockItem(id, isOwner = false) {
   if (!res.ok) throw new Error(data.message || "Failed to delete stock item");
   return data;
 }
+
+// ---- Purchases (generic edit/delete, used by the On the Way page) ---------
+// Unlike the /stock endpoints above, these cover both unassigned stock AND
+// order-linked purchases, since "On the Way" lists both.
+
+export async function updatePurchase(id, payload, isOwner = false) {
+  const token = await stockToken(isOwner);
+  const res = await fetch(`${API_BASE_URL}/api/janmarini/purchases/${id}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json", "x-auth-token": token || "" },
+    body: JSON.stringify(payload),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.message || "Failed to update purchase");
+  return data;
+}
+
+export async function deletePurchase(id, isOwner = false) {
+  const token = await stockToken(isOwner);
+  const res = await fetch(`${API_BASE_URL}/api/janmarini/purchases/${id}`, {
+    method: "DELETE",
+    headers: { "x-auth-token": token || "" },
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.message || "Failed to delete purchase");
+  return data;
+}
