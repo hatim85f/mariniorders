@@ -185,65 +185,6 @@ function StockRow({ item, isOwner, onChanged }) {
   );
 }
 
-// One row of the on-hand summary: total quantity physically in office for
-// this item name, split into unassigned (free stock) vs assigned (already
-// reserved for a specific order, e.g. arrived via a linked shipment).
-// Tapping the assigned count expands the list of order numbers it's split
-// across, since one item name can be reserved for several open orders at once.
-function StockSummaryRow({ row }) {
-  const [expanded, setExpanded] = useState(false);
-  const hasAssigned = row.assigned > 0;
-
-  const expiryInfo = formatExpiry(row.nearestExpiry);
-
-  return (
-    <View style={styles.summaryRow}>
-      <View style={styles.summaryTop}>
-        <View style={styles.itemNameRow}>
-          <Text style={styles.summaryName} numberOfLines={2}>{row.itemName}</Text>
-          {row.category === "professional" && (
-            <View style={styles.categoryBadge}>
-              <Text style={styles.categoryBadgeText}>Professional</Text>
-            </View>
-          )}
-          {!!expiryInfo && (
-            <Text style={[styles.summaryExpiry, expiryInfo.soon && styles.cellValueWarning]}>
-              exp. {expiryInfo.label}
-            </Text>
-          )}
-        </View>
-        <View style={styles.summaryCounts}>
-          <View style={styles.summaryStat}>
-            <Text style={styles.summaryStatValue}>{row.onHand}</Text>
-            <Text style={styles.summaryStatLabel}>on hand</Text>
-          </View>
-          <Pressable
-            style={[styles.summaryStat, hasAssigned && styles.summaryStatPressable]}
-            onPress={() => hasAssigned && setExpanded((v) => !v)}
-            disabled={!hasAssigned}
-          >
-            <Text style={[styles.summaryStatValue, hasAssigned && styles.summaryStatAssigned]}>{row.assigned}</Text>
-            <Text style={styles.summaryStatLabel}>assigned{hasAssigned ? (expanded ? " ▲" : " ▼") : ""}</Text>
-          </Pressable>
-          <View style={styles.summaryStat}>
-            <Text style={styles.summaryStatValue}>{row.unassigned}</Text>
-            <Text style={styles.summaryStatLabel}>unassigned</Text>
-          </View>
-        </View>
-      </View>
-      {expanded && hasAssigned && (
-        <View style={styles.summaryOrders}>
-          {row.assignedOrders.map((o, idx) => (
-            <View key={`${o.orderNumber}-${idx}`} style={styles.summaryOrderPill}>
-              <Text style={styles.summaryOrderText}>{o.orderNumber} · qty {o.quantity}</Text>
-            </View>
-          ))}
-        </View>
-      )}
-    </View>
-  );
-}
-
 function AddStockForm({ isOwner, onAdded }) {
   const [open, setOpen] = useState(false);
   const [itemName, setItemName] = useState("");
@@ -373,7 +314,6 @@ function AddStockForm({ isOwner, onAdded }) {
 
 export default function StockScreen({ view = "stock", onNavigate, onLoggedOut, isOwner = false, unreadNotifications = 0, onSyncNow, syncing = false, syncMessage = "" }) {
   const [items, setItems] = useState([]);
-  const [summary, setSummary] = useState([]);
   const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -384,7 +324,6 @@ export default function StockScreen({ view = "stock", onNavigate, onLoggedOut, i
     try {
       const data = await fetchStock(isOwner);
       setItems(data.items || []);
-      setSummary(data.summary || []);
     } catch (e) {
       setError(e.message);
       if (/session expired/i.test(e.message)) onLoggedOut();
@@ -433,15 +372,6 @@ export default function StockScreen({ view = "stock", onNavigate, onLoggedOut, i
             style={styles.search}
           />
         </View>
-
-        {!loading && summary.length > 0 && (
-          <View style={styles.summarySection}>
-            <Text style={styles.summaryHeading}>Stock on Hand (by item)</Text>
-            {summary.map((row) => (
-              <StockSummaryRow key={row.itemName} row={row} />
-            ))}
-          </View>
-        )}
 
         <AddStockForm isOwner={isOwner} onAdded={load} />
 
@@ -552,41 +482,11 @@ const styles = StyleSheet.create({
 
   categoryBadge: { backgroundColor: colors.primary + "18", borderRadius: 999, paddingHorizontal: spacing.sm, paddingVertical: 2 },
   categoryBadgeText: { fontSize: 10, fontWeight: "700", color: colors.primary },
-  summaryExpiry: { fontSize: 11, color: colors.mutedText, fontWeight: "600" },
-
   categoryToggle: { flexDirection: "row", borderWidth: 1, borderColor: colors.border, borderRadius: radius - 4, overflow: "hidden" },
   categoryOption: { paddingVertical: spacing.sm, paddingHorizontal: spacing.md, backgroundColor: colors.background },
   categoryOptionActive: { backgroundColor: colors.primary },
   categoryOptionText: { fontSize: 12, fontWeight: "600", color: colors.mutedText },
   categoryOptionTextActive: { color: "#fff" },
-
-  summarySection: { marginBottom: spacing.lg, maxWidth: 720 },
-  summaryHeading: { fontSize: 13, fontWeight: "700", color: colors.text, marginBottom: spacing.sm, textTransform: "uppercase", letterSpacing: 0.5 },
-  summaryRow: {
-    backgroundColor: colors.surface,
-    borderRadius: radius - 4,
-    borderWidth: 1,
-    borderColor: colors.border,
-    paddingVertical: spacing.sm,
-    paddingHorizontal: spacing.md,
-    marginBottom: spacing.xs,
-  },
-  summaryTop: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: spacing.sm },
-  summaryName: { fontSize: 14, fontWeight: "700", color: colors.text, flex: 1, minWidth: 180 },
-  summaryCounts: { flexDirection: "row", gap: spacing.lg },
-  summaryStat: { alignItems: "center", minWidth: 64 },
-  summaryStatPressable: { borderBottomWidth: 1, borderBottomColor: colors.primary, paddingBottom: 2 },
-  summaryStatValue: { fontSize: 15, fontWeight: "700", color: colors.text },
-  summaryStatAssigned: { color: colors.primary },
-  summaryStatLabel: { fontSize: 10, color: colors.mutedText, textTransform: "uppercase", letterSpacing: 0.3, marginTop: 1 },
-  summaryOrders: { flexDirection: "row", flexWrap: "wrap", gap: spacing.xs, marginTop: spacing.sm, paddingTop: spacing.sm, borderTopWidth: 1, borderTopColor: colors.border },
-  summaryOrderPill: {
-    backgroundColor: colors.primary + "15",
-    borderRadius: 999,
-    paddingVertical: 4,
-    paddingHorizontal: spacing.sm,
-  },
-  summaryOrderText: { fontSize: 12, fontWeight: "600", color: colors.primary },
 
   addToggle: {
     alignSelf: "flex-start",
