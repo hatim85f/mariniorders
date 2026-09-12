@@ -86,7 +86,14 @@ function AssignmentPicker({ openOrders, value, onChange }) {
   );
 }
 
-function BillItemCard({ item, index, assignment, onAssignmentChange, onFieldChange, openOrders }) {
+// A bill line's quantity doesn't always match what the picked order needs
+// (e.g. bought 2 of an item, the order only needs 1) -- assignQty lets the
+// owner split it: assignQty units go to the order, the rest is submitted as
+// its own free-stock line, instead of forcing the whole quantity onto one
+// order (the exact bug that left an order looking like it needed 2 of
+// something it only needed 1 of).
+function BillItemCard({ item, index, assignment, assignQty, onAssignmentChange, onAssignQtyChange, onFieldChange, openOrders }) {
+  const remainder = assignment?.orderNumber ? Math.max(0, item.quantity - assignQty) : 0;
   return (
     <View style={styles.itemCard}>
       <Text style={styles.itemName}>{item.itemName}</Text>
@@ -96,7 +103,7 @@ function BillItemCard({ item, index, assignment, onAssignmentChange, onFieldChan
 
       <View style={styles.fieldRow}>
         <View style={styles.fieldGroup}>
-          <Text style={styles.fieldLabel}>Qty</Text>
+          <Text style={styles.fieldLabel}>Qty bought</Text>
           <TextInput
             value={String(item.quantity)}
             onChangeText={(v) => onFieldChange(index, "quantity", v)}
@@ -117,6 +124,23 @@ function BillItemCard({ item, index, assignment, onAssignmentChange, onFieldChan
 
       <Text style={styles.fieldLabel}>Assign to</Text>
       <AssignmentPicker openOrders={openOrders} value={assignment} onChange={(a) => onAssignmentChange(index, a)} />
+
+      {!!assignment?.orderNumber && item.quantity > 1 && (
+        <View style={styles.splitRow}>
+          <View style={styles.fieldGroup}>
+            <Text style={styles.fieldLabel}>Units for this order</Text>
+            <TextInput
+              value={String(assignQty)}
+              onChangeText={(v) => onAssignQtyChange(index, v)}
+              keyboardType="numeric"
+              style={styles.fieldInputSmall}
+            />
+          </View>
+          {remainder > 0 && (
+            <Text style={styles.splitNote}>+{remainder} left over will be saved as free stock</Text>
+          )}
+        </View>
+      )}
     </View>
   );
 }
@@ -131,6 +155,7 @@ export default function UploadPurchasesScreen({ view = "purchases", onNavigate, 
   const [items, setItems] = useState([]);
   const [openOrders, setOpenOrders] = useState([]);
   const [assignments, setAssignments] = useState([]); // parallel array to items: null | {orderNumber, orderItemName}
+  const [assignQtys, setAssignQtys] = useState([]); // parallel array to items: units of this line going to the order (rest -> stock)
 
   const pickFile = () => {
     if (Platform.OS !== "web") return;
@@ -155,6 +180,7 @@ export default function UploadPurchasesScreen({ view = "purchases", onNavigate, 
       setItems(data.items);
       setOpenOrders(data.openOrders || []);
       setAssignments(data.items.map(() => null));
+      setAssignQtys(data.items.map((i) => i.quantity));
     } catch (e) {
       setError(e.message);
     } finally {
@@ -165,15 +191,41 @@ export default function UploadPurchasesScreen({ view = "purchases", onNavigate, 
   const updateField = (index, field, value) => {
     setItems((prev) => {
       const next = [...prev];
-      next[index] = { ...next[index], [field]: field === "quantity" ? Number(value) || 1 : Number(value) || 0 };
+      const numValue = field === "quantity" ? Number(value) || 1 : Number(value) || 0;
+      next[index] = { ...next[index], [field]: numValue };
       return next;
     });
+    if (field === "quantity") {
+      const qty = Number(value) || 1;
+      setAssignQtys((prev) => {
+        const next = [...prev];
+        next[index] = Math.min(next[index] ?? qty, qty);
+        return next;
+      });
+    }
   };
 
   const updateAssignment = (index, value) => {
     setAssignments((prev) => {
       const next = [...prev];
       next[index] = value;
+      return next;
+    });
+    // Default to the whole quantity going to the newly-picked order — the
+    // owner only needs to touch "Units for this order" when a split is
+    // actually needed.
+    setAssignQtys((prev) => {
+      const next = [...prev];
+      next[index] = items[index]?.quantity ?? 1;
+      return next;
+    });
+  };
+
+  const updateAssignQty = (index, value) => {
+    setAssignQtys((prev) => {
+      const next = [...prev];
+      const qty = items[index]?.quantity ?? 1;
+      next[index] = Math.max(1, Math.min(Number(value) || 1, qty));
       return next;
     });
   };
@@ -184,6 +236,7 @@ export default function UploadPurchasesScreen({ view = "purchases", onNavigate, 
     setItems([]);
     setOpenOrders([]);
     setAssignments([]);
+    setAssignQtys([]);
     setError("");
   };
 
@@ -191,22 +244,37 @@ export default function UploadPurchasesScreen({ view = "purchases", onNavigate, 
     setSaving(true);
     setError("");
     try {
-      const payload = {
-        receiptUrl,
-        purchaseDate,
-        assignments: items.map((item, i) => ({
+      const assignmentRows = [];
+      items.forEach((item, i) => {
+        const base = {
           itemName: item.itemName,
-          quantity: item.quantity,
           costUSD: item.costUSD,
           seller: item.seller,
           ebayOrderNumber: item.ebayOrderNumber,
           ebayItemId: item.ebayItemId,
-          orderNumber: assignments[i]?.orderNumber || "",
-          orderItemName: assignments[i]?.orderItemName || "",
-        })),
-      };
+        };
+        const orderNumber = assignments[i]?.orderNumber || "";
+        const orderItemName = assignments[i]?.orderItemName || "";
+        const forOrder = orderNumber ? Math.min(assignQtys[i] ?? item.quantity, item.quantity) : 0;
+        const remainder = item.quantity - forOrder;
+
+        // Bought quantity can exceed what the picked order needs -- split
+        // into two rows so the extra becomes its own free-stock line instead
+        // of silently inflating what the order is recorded as needing.
+        if (orderNumber && forOrder > 0) {
+          assignmentRows.push({ ...base, quantity: forOrder, orderNumber, orderItemName });
+        }
+        if (remainder > 0) {
+          assignmentRows.push({ ...base, quantity: remainder, orderNumber: "", orderItemName: "" });
+        }
+        if (!orderNumber) {
+          assignmentRows.push({ ...base, quantity: item.quantity, orderNumber: "", orderItemName: "" });
+        }
+      });
+
+      const payload = { receiptUrl, purchaseDate, assignments: assignmentRows };
       await confirmPurchaseAssignments(payload);
-      setSuccessMsg(`Saved ${items.length} purchase${items.length === 1 ? "" : "s"} to the CRM.`);
+      setSuccessMsg(`Saved ${assignmentRows.length} purchase${assignmentRows.length === 1 ? "" : "s"} to the CRM.`);
       reset();
     } catch (e) {
       setError(e.message);
@@ -251,7 +319,9 @@ export default function UploadPurchasesScreen({ view = "purchases", onNavigate, 
                 index={i}
                 item={item}
                 assignment={assignments[i]}
+                assignQty={assignQtys[i] ?? item.quantity}
                 onAssignmentChange={updateAssignment}
+                onAssignQtyChange={updateAssignQty}
                 onFieldChange={updateField}
                 openOrders={openOrders}
               />
@@ -304,6 +374,8 @@ const styles = StyleSheet.create({
   itemMeta: { fontSize: 12, color: colors.mutedText, marginTop: 2, marginBottom: spacing.sm },
 
   fieldRow: { flexDirection: "row", gap: spacing.md, marginBottom: spacing.sm },
+  splitRow: { flexDirection: "row", alignItems: "center", gap: spacing.md, marginTop: spacing.sm },
+  splitNote: { fontSize: 12, color: colors.secondaryTeal, fontWeight: "600", flex: 1 },
   fieldGroup: {},
   fieldLabel: { fontSize: 11, color: colors.mutedText, fontWeight: "600", marginBottom: 4 },
   fieldInputSmall: {
