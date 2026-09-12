@@ -109,6 +109,10 @@ function OnTheWayRow({ item, onChanged }) {
         </Text>
       </View>
       <View style={[styles.cell, styles.cellTracking]}>
+        <Text style={styles.cellLabel}>eBay Order # / Seller Tracking</Text>
+        <Text style={styles.cellValue}>{item.sellerTracking || item.ebayOrderNumber || "—"}</Text>
+      </View>
+      <View style={[styles.cell, styles.cellTracking]}>
         <Text style={styles.cellLabel}>Courier</Text>
         <Text style={styles.cellValue}>{item.trackingNumber || "—"}</Text>
       </View>
@@ -170,6 +174,8 @@ export default function OnTheWayScreen({ view = "onTheWay", onNavigate, onLogged
       (item.orderNumber || "").toLowerCase().includes(q) ||
       (item.originOrderNumber || "").toLowerCase().includes(q) ||
       (item.trackingNumber || "").toLowerCase().includes(q) ||
+      (item.ebayOrderNumber || "").toLowerCase().includes(q) ||
+      (item.sellerTracking || "").toLowerCase().includes(q) ||
       (item.stockNote || "").toLowerCase().includes(q)
     );
   });
@@ -218,6 +224,7 @@ export default function OnTheWayScreen({ view = "onTheWay", onNavigate, onLogged
               <Text style={[styles.headerCell, styles.cellName]}>Item</Text>
               <Text style={[styles.headerCell, styles.cellQty]}>Qty</Text>
               <Text style={[styles.headerCell, styles.cellTracking]}>Order</Text>
+              <Text style={[styles.headerCell, styles.cellTracking]}>eBay # / Seller Tracking</Text>
               <Text style={[styles.headerCell, styles.cellTracking]}>Courier</Text>
               <Text style={[styles.headerCell, styles.cellStatus]}>Status</Text>
               <Text style={[styles.headerCell, styles.cellActions]}></Text>
@@ -252,7 +259,7 @@ const styles = StyleSheet.create({
   error: { color: colors.danger, marginTop: spacing.md },
   empty: { color: colors.mutedText, marginTop: spacing.xl },
 
-  list: { paddingBottom: spacing.xl, minWidth: 820 },
+  list: { paddingBottom: spacing.xl, minWidth: 970 },
   listHeader: {
     flexDirection: "row",
     alignItems: "center",
