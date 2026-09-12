@@ -70,7 +70,7 @@ function StockRow({ item, isOwner, onChanged }) {
         <TextInput value={itemName} onChangeText={setItemName} placeholder="Item name" placeholderTextColor={colors.mutedText} style={styles.input} />
         <View style={styles.formRow}>
           <TextInput value={quantity} onChangeText={setQuantity} placeholder="Qty" placeholderTextColor={colors.mutedText} keyboardType="numeric" style={[styles.input, styles.inputSmall]} />
-          <TextInput value={tracking} onChangeText={setTracking} placeholder="Shop & Ship tracking #" placeholderTextColor={colors.mutedText} style={[styles.input, styles.inputFlex]} />
+          <TextInput value={tracking} onChangeText={setTracking} placeholder="Courier tracking #" placeholderTextColor={colors.mutedText} style={[styles.input, styles.inputFlex]} />
           {isOwner && (
             <TextInput value={cost} onChangeText={setCost} placeholder="Cost (USD)" placeholderTextColor={colors.mutedText} keyboardType="numeric" style={[styles.input, styles.inputSmall]} />
           )}
@@ -101,7 +101,7 @@ function StockRow({ item, isOwner, onChanged }) {
         <Text style={styles.cellValue}>{item.quantity}</Text>
       </View>
       <View style={[styles.cell, styles.cellTracking]}>
-        <Text style={styles.cellLabel}>Shop &amp; Ship</Text>
+        <Text style={styles.cellLabel}>Courier</Text>
         <Text style={styles.cellValue}>{item.shopAndShipTracking || "—"}</Text>
       </View>
       {isOwner && (
@@ -129,6 +129,51 @@ function StockRow({ item, isOwner, onChanged }) {
           </Pressable>
         )}
       </View>
+    </View>
+  );
+}
+
+// One row of the on-hand summary: total quantity physically in office for
+// this item name, split into unassigned (free stock) vs assigned (already
+// reserved for a specific order, e.g. arrived via a linked shipment).
+// Tapping the assigned count expands the list of order numbers it's split
+// across, since one item name can be reserved for several open orders at once.
+function StockSummaryRow({ row }) {
+  const [expanded, setExpanded] = useState(false);
+  const hasAssigned = row.assigned > 0;
+
+  return (
+    <View style={styles.summaryRow}>
+      <View style={styles.summaryTop}>
+        <Text style={styles.summaryName} numberOfLines={2}>{row.itemName}</Text>
+        <View style={styles.summaryCounts}>
+          <View style={styles.summaryStat}>
+            <Text style={styles.summaryStatValue}>{row.onHand}</Text>
+            <Text style={styles.summaryStatLabel}>on hand</Text>
+          </View>
+          <Pressable
+            style={[styles.summaryStat, hasAssigned && styles.summaryStatPressable]}
+            onPress={() => hasAssigned && setExpanded((v) => !v)}
+            disabled={!hasAssigned}
+          >
+            <Text style={[styles.summaryStatValue, hasAssigned && styles.summaryStatAssigned]}>{row.assigned}</Text>
+            <Text style={styles.summaryStatLabel}>assigned{hasAssigned ? (expanded ? " ▲" : " ▼") : ""}</Text>
+          </Pressable>
+          <View style={styles.summaryStat}>
+            <Text style={styles.summaryStatValue}>{row.unassigned}</Text>
+            <Text style={styles.summaryStatLabel}>unassigned</Text>
+          </View>
+        </View>
+      </View>
+      {expanded && hasAssigned && (
+        <View style={styles.summaryOrders}>
+          {row.assignedOrders.map((o, idx) => (
+            <View key={`${o.orderNumber}-${idx}`} style={styles.summaryOrderPill}>
+              <Text style={styles.summaryOrderText}>{o.orderNumber} · qty {o.quantity}</Text>
+            </View>
+          ))}
+        </View>
+      )}
     </View>
   );
 }
@@ -209,7 +254,7 @@ function AddStockForm({ isOwner, onAdded }) {
         <TextInput
           value={tracking}
           onChangeText={setTracking}
-          placeholder="Shop & Ship tracking #"
+          placeholder="Courier tracking #"
           placeholderTextColor={colors.mutedText}
           style={[styles.input, styles.inputFlex]}
         />
@@ -246,6 +291,7 @@ function AddStockForm({ isOwner, onAdded }) {
 
 export default function StockScreen({ view = "stock", onNavigate, onLoggedOut, isOwner = false, unreadNotifications = 0, onSyncNow, syncing = false, syncMessage = "" }) {
   const [items, setItems] = useState([]);
+  const [summary, setSummary] = useState([]);
   const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -254,7 +300,9 @@ export default function StockScreen({ view = "stock", onNavigate, onLoggedOut, i
     setLoading(true);
     setError("");
     try {
-      setItems(await fetchStock(isOwner));
+      const data = await fetchStock(isOwner);
+      setItems(data.items || []);
+      setSummary(data.summary || []);
     } catch (e) {
       setError(e.message);
       if (/session expired/i.test(e.message)) onLoggedOut();
@@ -304,6 +352,15 @@ export default function StockScreen({ view = "stock", onNavigate, onLoggedOut, i
           />
         </View>
 
+        {!loading && summary.length > 0 && (
+          <View style={styles.summarySection}>
+            <Text style={styles.summaryHeading}>Stock on Hand (by item)</Text>
+            {summary.map((row) => (
+              <StockSummaryRow key={row.itemName} row={row} />
+            ))}
+          </View>
+        )}
+
         <AddStockForm isOwner={isOwner} onAdded={load} />
 
         {loading && <ActivityIndicator style={{ marginTop: spacing.xl }} color={colors.primary} />}
@@ -322,7 +379,7 @@ export default function StockScreen({ view = "stock", onNavigate, onLoggedOut, i
             <View style={styles.listHeader}>
               <Text style={[styles.headerCell, styles.cellName]}>Item</Text>
               <Text style={[styles.headerCell, styles.cellQty]}>Qty</Text>
-              <Text style={[styles.headerCell, styles.cellTracking]}>Shop &amp; Ship</Text>
+              <Text style={[styles.headerCell, styles.cellTracking]}>Courier</Text>
               {isOwner && <Text style={[styles.headerCell, styles.cellCost]}>Cost</Text>}
               <Text style={[styles.headerCell, styles.cellStatus]}>Status</Text>
               <Text style={[styles.headerCell, styles.cellActions]}></Text>
@@ -404,6 +461,34 @@ const styles = StyleSheet.create({
   pill: { paddingHorizontal: spacing.sm, paddingVertical: 4, borderRadius: 999, alignSelf: "flex-start" },
   pillText: { fontSize: 11, fontWeight: "700" },
   note: { fontSize: 12, color: colors.mutedText, marginTop: 2, fontStyle: "italic" },
+
+  summarySection: { marginBottom: spacing.lg, maxWidth: 720 },
+  summaryHeading: { fontSize: 13, fontWeight: "700", color: colors.text, marginBottom: spacing.sm, textTransform: "uppercase", letterSpacing: 0.5 },
+  summaryRow: {
+    backgroundColor: colors.surface,
+    borderRadius: radius - 4,
+    borderWidth: 1,
+    borderColor: colors.border,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
+    marginBottom: spacing.xs,
+  },
+  summaryTop: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: spacing.sm },
+  summaryName: { fontSize: 14, fontWeight: "700", color: colors.text, flex: 1, minWidth: 180 },
+  summaryCounts: { flexDirection: "row", gap: spacing.lg },
+  summaryStat: { alignItems: "center", minWidth: 64 },
+  summaryStatPressable: { borderBottomWidth: 1, borderBottomColor: colors.primary, paddingBottom: 2 },
+  summaryStatValue: { fontSize: 15, fontWeight: "700", color: colors.text },
+  summaryStatAssigned: { color: colors.primary },
+  summaryStatLabel: { fontSize: 10, color: colors.mutedText, textTransform: "uppercase", letterSpacing: 0.3, marginTop: 1 },
+  summaryOrders: { flexDirection: "row", flexWrap: "wrap", gap: spacing.xs, marginTop: spacing.sm, paddingTop: spacing.sm, borderTopWidth: 1, borderTopColor: colors.border },
+  summaryOrderPill: {
+    backgroundColor: colors.primary + "15",
+    borderRadius: 999,
+    paddingVertical: 4,
+    paddingHorizontal: spacing.sm,
+  },
+  summaryOrderText: { fontSize: 12, fontWeight: "600", color: colors.primary },
 
   addToggle: {
     alignSelf: "flex-start",

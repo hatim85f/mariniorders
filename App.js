@@ -11,6 +11,7 @@ import OwnerOrderDetailScreen from "./src/screens/OwnerOrderDetailScreen";
 import OwnerProfitsScreen from "./src/screens/OwnerProfitsScreen";
 import OwnerConfirmationsScreen from "./src/screens/OwnerConfirmationsScreen";
 import StockScreen from "./src/screens/StockScreen";
+import OnTheWayScreen from "./src/screens/OnTheWayScreen";
 import NotificationsScreen from "./src/screens/NotificationsScreen";
 import UploadPurchasesScreen from "./src/screens/UploadPurchasesScreen";
 
@@ -47,8 +48,8 @@ export default function App() {
 
   const handleNavigate = (key) => {
     const validKeys = isOwnerMode
-      ? ["orders", "history", "profits", "confirmations", "stock", "notifications", "purchases"]
-      : ["orders", "history", "stock"];
+      ? ["orders", "history", "profits", "confirmations", "stock", "onTheWay", "notifications", "purchases"]
+      : ["orders", "history", "stock", "onTheWay"];
     if (!validKeys.includes(key)) return;
     setView(key);
     setSelectedOrder(null);
@@ -105,6 +106,8 @@ export default function App() {
           <NotificationsScreen view={view} onNavigate={handleNavigate} onLoggedOut={handleLoggedOut} onSyncNow={handleSyncNow} syncing={syncing} syncMessage={syncMessage} />
         ) : view === "stock" ? (
           <StockScreen view={view} onNavigate={handleNavigate} onLoggedOut={handleLoggedOut} isOwner unreadNotifications={unreadNotifications} onSyncNow={handleSyncNow} syncing={syncing} syncMessage={syncMessage} />
+        ) : view === "onTheWay" ? (
+          <OnTheWayScreen view={view} onNavigate={handleNavigate} onLoggedOut={handleLoggedOut} isOwner unreadNotifications={unreadNotifications} onSyncNow={handleSyncNow} syncing={syncing} syncMessage={syncMessage} />
         ) : view === "purchases" ? (
           <UploadPurchasesScreen view={view} onNavigate={handleNavigate} onLoggedOut={handleLoggedOut} unreadNotifications={unreadNotifications} onSyncNow={handleSyncNow} syncing={syncing} syncMessage={syncMessage} />
         ) : selectedOrder ? (
@@ -140,6 +143,15 @@ export default function App() {
     return (
       <>
         <StockScreen view={view} onNavigate={handleNavigate} onLoggedOut={handleLoggedOut} />
+        <StatusBar style="auto" />
+      </>
+    );
+  }
+
+  if (view === "onTheWay") {
+    return (
+      <>
+        <OnTheWayScreen view={view} onNavigate={handleNavigate} onLoggedOut={handleLoggedOut} />
         <StatusBar style="auto" />
       </>
     );

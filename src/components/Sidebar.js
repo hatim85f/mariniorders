@@ -9,6 +9,7 @@ const NAV_ITEMS = [
   { key: "orders", label: "Orders", enabled: true },
   { key: "history", label: "History", enabled: true },
   { key: "stock", label: "Stock", enabled: true },
+  { key: "onTheWay", label: "On the Way", enabled: true },
   { key: "purchases", label: "Upload Purchases", enabled: true, ownerOnly: true },
   { key: "confirmations", label: "Confirmations", enabled: true, ownerOnly: true, badgeKey: true },
   { key: "profits", label: "Profits", enabled: true, ownerOnly: true },
