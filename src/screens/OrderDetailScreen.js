@@ -3,8 +3,9 @@ import { View, Text, Pressable, StyleSheet, ScrollView, Image, ActivityIndicator
 import { colors, spacing, radius, EMPLOYEE_STATUS_META } from "../theme";
 import Sidebar from "../components/Sidebar";
 import StatusTracker from "../components/StatusTracker";
-import { markOrderFulfilled } from "../api";
+import { markOrderFulfilled, saveOrderShipment } from "../api";
 import { printOrderLabels } from "../printLabels";
+import { pickAndRotateAramexLabel } from "../attachAramexLabel";
 import ShipmentPrintFields, { useShipmentPrintFields } from "../components/ShipmentPrintFields";
 
 function formatAddress(addr) {
@@ -16,7 +17,45 @@ export default function OrderDetailScreen({ order, onBack, onLoggedOut, view = "
   const [fulfilling, setFulfilling] = useState(false);
   const [error, setError] = useState("");
   const [fulfilled, setFulfilled] = useState(order.fulfilled);
-  const shipment = useShipmentPrintFields();
+  const shipment = useShipmentPrintFields(order);
+  const [savingShipment, setSavingShipment] = useState(false);
+  const [shipmentSavedAt, setShipmentSavedAt] = useState(null);
+  const [aramexLabelDataUrl, setAramexLabelDataUrl] = useState(null);
+  const [attachingLabel, setAttachingLabel] = useState(false);
+
+  const handleAttachLabel = async () => {
+    setAttachingLabel(true);
+    try {
+      const dataUrl = await pickAndRotateAramexLabel();
+      if (dataUrl) setAramexLabelDataUrl(dataUrl);
+    } finally {
+      setAttachingLabel(false);
+    }
+  };
+
+  const handleSaveShipment = async () => {
+    setSavingShipment(true);
+    setError("");
+    try {
+      await saveOrderShipment(order.orderNumber, {
+        courier: shipment.courier,
+        trackingNumber: shipment.trackingNumber,
+        collectionReference: shipment.collectionReference,
+      });
+      setShipmentSavedAt(new Date());
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setSavingShipment(false);
+    }
+  };
+
+  const handlePrint = async () => {
+    printOrderLabels(order, { courier: shipment.courier, trackingNumber: shipment.trackingNumber, collectionReference: shipment.collectionReference }, aramexLabelDataUrl);
+    // Fire-and-forget — printing shouldn't wait on the network, but the
+    // number typed in right before printing is almost always the final one.
+    handleSaveShipment();
+  };
 
   const handleMarkFulfilled = async () => {
     setFulfilling(true);
@@ -68,10 +107,23 @@ export default function OrderDetailScreen({ order, onBack, onLoggedOut, view = "
               onTrackingChange={shipment.setTrackingNumber}
               onCollectionRefChange={shipment.setCollectionReference}
             />
-            <Pressable onPress={() => printOrderLabels(order, { courier: shipment.courier, trackingNumber: shipment.trackingNumber, collectionReference: shipment.collectionReference })} style={styles.printBtn}>
-              <Text style={styles.printBtnText}>🖨 Print Address Details</Text>
-            </Pressable>
+            <View style={styles.printActions}>
+              <Pressable onPress={handleAttachLabel} disabled={attachingLabel} style={styles.saveBtn}>
+                <Text style={styles.saveBtnText}>
+                  {attachingLabel ? "Reading PDF…" : aramexLabelDataUrl ? "📎 Label attached ✓" : "📎 Attach Aramex Label"}
+                </Text>
+              </Pressable>
+              <Pressable onPress={handleSaveShipment} disabled={savingShipment} style={styles.saveBtn}>
+                <Text style={styles.saveBtnText}>{savingShipment ? "Saving…" : "💾 Save Tracking"}</Text>
+              </Pressable>
+              <Pressable onPress={handlePrint} style={styles.printBtn}>
+                <Text style={styles.printBtnText}>🖨 Print Address Details</Text>
+              </Pressable>
+            </View>
           </View>
+          {!!shipmentSavedAt && (
+            <Text style={styles.savedNote}>Saved {shipmentSavedAt.toLocaleTimeString()}</Text>
+          )}
           {!!error && <Text style={styles.error}>{error}</Text>}
           <View style={styles.headerCols}>
             <View>
@@ -177,6 +229,7 @@ const styles = StyleSheet.create({
   etaText: { fontSize: 12, color: colors.secondaryTeal, marginTop: 4, fontWeight: "600" },
   headerActions: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
   printRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: spacing.sm, marginBottom: spacing.md },
+  printActions: { flexDirection: "row", gap: spacing.sm },
   printBtn: {
     borderWidth: 1,
     borderColor: colors.primary,
@@ -185,6 +238,15 @@ const styles = StyleSheet.create({
     borderRadius: radius - 4,
   },
   printBtnText: { color: colors.primary, fontWeight: "700", fontSize: 13 },
+  saveBtn: {
+    borderWidth: 1,
+    borderColor: colors.border,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderRadius: radius - 4,
+  },
+  saveBtnText: { color: colors.mutedText, fontWeight: "700", fontSize: 13 },
+  savedNote: { fontSize: 11, color: colors.success, marginBottom: spacing.sm, marginTop: -4 },
   fulfillBtn: {
     backgroundColor: colors.primary,
     paddingHorizontal: spacing.md,

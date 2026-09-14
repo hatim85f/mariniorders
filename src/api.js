@@ -41,6 +41,21 @@ export async function fetchOrders() {
   return data;
 }
 
+// Saves the outbound (Dubai -> customer) courier + tracking number against
+// the order, so it survives a page reload and shows up for both dashboards
+// instead of living only in the print form's local state.
+export async function saveOrderShipment(orderNumber, { courier, trackingNumber, collectionReference }, isOwner = false) {
+  const token = await stockToken(isOwner);
+  const res = await fetch(`${API_BASE_URL}/api/janmarini/orders/${encodeURIComponent(orderNumber)}/shipment`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json", "x-auth-token": token || "" },
+    body: JSON.stringify({ courier, trackingNumber, collectionReference }),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.message || "Failed to save tracking number");
+  return data;
+}
+
 export async function markOrderFulfilled(orderNumber) {
   const token = await getStoredToken();
   const res = await fetch(`${API_BASE_URL}/api/janmarini/orders/${encodeURIComponent(orderNumber)}/fulfill`, {

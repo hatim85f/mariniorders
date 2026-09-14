@@ -1,9 +1,11 @@
-import React from "react";
+import React, { useState } from "react";
 import { View, Text, StyleSheet, ScrollView, Image, Pressable } from "react-native";
 import { colors, spacing, radius, STATUS_STEPS, STATUS_META, formatAmount } from "../theme";
 import Sidebar from "../components/Sidebar";
 import StatusTracker from "../components/StatusTracker";
 import { printOrderLabels } from "../printLabels";
+import { pickAndRotateAramexLabel } from "../attachAramexLabel";
+import { saveOrderShipment } from "../api";
 import ShipmentPrintFields, { useShipmentPrintFields } from "../components/ShipmentPrintFields";
 
 function formatAddress(addr) {
@@ -18,7 +20,42 @@ export default function OwnerOrderDetailScreen({ order, onBack, onLoggedOut, vie
   const shopifyFeeAED = order.shopifyFeeAED || 0;
   const deliveryFeeAED = order.deliveryFeeAED || 0;
   const profit = order.profit ?? 0;
-  const shipment = useShipmentPrintFields();
+  const shipment = useShipmentPrintFields(order);
+  const [savingShipment, setSavingShipment] = useState(false);
+  const [shipmentSavedAt, setShipmentSavedAt] = useState(null);
+  const [aramexLabelDataUrl, setAramexLabelDataUrl] = useState(null);
+  const [attachingLabel, setAttachingLabel] = useState(false);
+
+  const handleAttachLabel = async () => {
+    setAttachingLabel(true);
+    try {
+      const dataUrl = await pickAndRotateAramexLabel();
+      if (dataUrl) setAramexLabelDataUrl(dataUrl);
+    } finally {
+      setAttachingLabel(false);
+    }
+  };
+
+  const handleSaveShipment = async () => {
+    setSavingShipment(true);
+    try {
+      await saveOrderShipment(
+        order.orderNumber,
+        { courier: shipment.courier, trackingNumber: shipment.trackingNumber, collectionReference: shipment.collectionReference },
+        true
+      );
+      setShipmentSavedAt(new Date());
+    } catch (e) {
+      // non-fatal -- tracking number stays in the form either way
+    } finally {
+      setSavingShipment(false);
+    }
+  };
+
+  const handlePrint = () => {
+    printOrderLabels(order, { courier: shipment.courier, trackingNumber: shipment.trackingNumber, collectionReference: shipment.collectionReference }, aramexLabelDataUrl);
+    handleSaveShipment();
+  };
 
   return (
     <View style={styles.page}>
@@ -42,10 +79,21 @@ export default function OwnerOrderDetailScreen({ order, onBack, onLoggedOut, vie
               onTrackingChange={shipment.setTrackingNumber}
               onCollectionRefChange={shipment.setCollectionReference}
             />
-            <Pressable onPress={() => printOrderLabels(order, { courier: shipment.courier, trackingNumber: shipment.trackingNumber, collectionReference: shipment.collectionReference })} style={styles.printBtn}>
-              <Text style={styles.printBtnText}>🖨 Print Address Details</Text>
-            </Pressable>
+            <View style={styles.printActions}>
+              <Pressable onPress={handleAttachLabel} disabled={attachingLabel} style={styles.saveBtn}>
+                <Text style={styles.saveBtnText}>
+                  {attachingLabel ? "Reading PDF…" : aramexLabelDataUrl ? "📎 Label attached ✓" : "📎 Attach Aramex Label"}
+                </Text>
+              </Pressable>
+              <Pressable onPress={handleSaveShipment} disabled={savingShipment} style={styles.saveBtn}>
+                <Text style={styles.saveBtnText}>{savingShipment ? "Saving…" : "💾 Save Tracking"}</Text>
+              </Pressable>
+              <Pressable onPress={handlePrint} style={styles.printBtn}>
+                <Text style={styles.printBtnText}>🖨 Print Address Details</Text>
+              </Pressable>
+            </View>
           </View>
+          {!!shipmentSavedAt && <Text style={styles.savedNote}>Saved {shipmentSavedAt.toLocaleTimeString()}</Text>}
           <View style={styles.headerCols}>
             <View>
               <Text style={styles.headerLabel}>CUSTOMER</Text>
@@ -158,6 +206,7 @@ const styles = StyleSheet.create({
   headerTopRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: spacing.md },
   orderTitle: { fontSize: 20, fontWeight: "700", color: colors.text },
   printRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: spacing.sm, marginBottom: spacing.md },
+  printActions: { flexDirection: "row", gap: spacing.sm },
   printBtn: {
     borderWidth: 1,
     borderColor: colors.primary,
@@ -166,6 +215,15 @@ const styles = StyleSheet.create({
     borderRadius: radius - 4,
   },
   printBtnText: { color: colors.primary, fontWeight: "700", fontSize: 13 },
+  saveBtn: {
+    borderWidth: 1,
+    borderColor: colors.border,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderRadius: radius - 4,
+  },
+  saveBtnText: { color: colors.mutedText, fontWeight: "700", fontSize: 13 },
+  savedNote: { fontSize: 11, color: colors.success, marginBottom: spacing.sm, marginTop: -4 },
   headerCols: { flexDirection: "row", gap: spacing.xl, flexWrap: "wrap" },
   headerLabel: { fontSize: 10, color: colors.primary, fontWeight: "700", letterSpacing: 0.5, marginBottom: 2 },
   headerValue: { fontSize: 14, fontWeight: "600", color: colors.text },

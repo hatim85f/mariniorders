@@ -55,10 +55,12 @@ export default function ShipmentPrintFields({
   );
 }
 
-export function useShipmentPrintFields() {
-  const [courier, setCourier] = useState("");
-  const [trackingNumber, setTrackingNumber] = useState("");
-  const [collectionReference, setCollectionReference] = useState("");
+// Pass the order in to pre-fill from whatever was last saved (see
+// saveOrderShipment in api.js) instead of starting blank on every visit.
+export function useShipmentPrintFields(order) {
+  const [courier, setCourier] = useState(order?.outboundCourier || "");
+  const [trackingNumber, setTrackingNumber] = useState(order?.outboundTrackingNumber || "");
+  const [collectionReference, setCollectionReference] = useState(order?.outboundCollectionReference || "");
   return { courier, trackingNumber, collectionReference, setCourier, setTrackingNumber, setCollectionReference };
 }
 

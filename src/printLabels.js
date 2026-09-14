@@ -1,12 +1,18 @@
 // Builds a single address/phone/WhatsApp-QR/courier-tracking label (the
 // order-contents second label was removed -- only the top half of the A4
-// sheet prints now) and sends it to the browser's print dialog -- the user
-// picks their actual printer (HP or otherwise) there; a web page can't
-// target a specific printer directly for security reasons.
+// sheet printed for a while) and sends it to the browser's print dialog --
+// the user picks their actual printer (HP or otherwise) there; a web page
+// can't target a specific printer directly for security reasons.
+//
+// That second, empty slot is now reused for the Aramex shipping label itself
+// (see attachAramexLabel.js) -- rotated 90° from its native portrait shape
+// so it fits the landscape slot, instead of leaving it blank. One print =
+// one sheet with the address label on top and the courier's own barcode
+// label underneath, ready to cut and put straight in the package.
 //
 // The label height below (128mm) assumes a generic 2-labels-per-A4 sticker
-// sheet, printing only the first slot. If your actual sheet has different
-// label positions, adjust LABEL_HEIGHT/PAGE_MARGIN to match.
+// sheet. If your actual sheet has different label positions, adjust
+// LABEL_HEIGHT/PAGE_MARGIN to match.
 const PAGE_MARGIN_MM = 10;
 const LABEL_HEIGHT_MM = 128;
 const LABEL_GAP_MM = 8;
@@ -40,7 +46,7 @@ function escapeHtml(s) {
   return String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 }
 
-export function buildLabelsHtml(order, shipment) {
+export function buildLabelsHtml(order, shipment, aramexLabelDataUrl) {
   const addressLine = formatAddress(order.shippingAddress);
   const waLink = toWhatsAppLink(order.customerPhone);
   const qrUrl = waLink ? qrCodeUrl(waLink) : "";
@@ -86,6 +92,19 @@ export function buildLabelsHtml(order, shipment) {
   .shipmentValue { font-size: 20px; font-weight: 700; color: #0F172A; }
   .courierValue { font-size: 15px; font-weight: 700; color: #0F766D; text-transform: uppercase; margin-bottom: 1mm; }
   .shipmentSubRow { font-size: 11px; color: #6B7280; margin-top: 2mm; }
+  .labelGap { height: ${LABEL_GAP_MM}mm; }
+  .aramexSlot {
+    width: 100%;
+    height: ${LABEL_HEIGHT_MM}mm;
+    border: 1px dashed #CBD5E1;
+    border-radius: 3mm;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+  }
+  .aramexSlot img { max-width: 100%; max-height: 100%; object-fit: contain; }
+  .aramexSlotEmpty { font-family: Arial, Helvetica, sans-serif; font-size: 12px; color: #94A3B8; text-align: center; padding: 8mm; }
 </style>
 </head>
 <body>
@@ -114,6 +133,10 @@ export function buildLabelsHtml(order, shipment) {
       </div>
     </div>
   </div>
+  <div class="labelGap"></div>
+  ${aramexLabelDataUrl
+    ? `<div class="aramexSlot"><img src="${aramexLabelDataUrl}" alt="Aramex shipping label" /></div>`
+    : `<div class="aramexSlot aramexSlotEmpty">No Aramex label attached — use "Attach Aramex Label" before printing to fill this slot.</div>`}
 </body>
 </html>`;
 }
@@ -121,8 +144,8 @@ export function buildLabelsHtml(order, shipment) {
 // Opens the HTML in a new tab and triggers the browser's print dialog. Must
 // be called synchronously from a click handler (the pattern used below) so
 // popup blockers treat it as a user-initiated action.
-export function printOrderLabels(order, shipment) {
-  const html = buildLabelsHtml(order, shipment);
+export function printOrderLabels(order, shipment, aramexLabelDataUrl) {
+  const html = buildLabelsHtml(order, shipment, aramexLabelDataUrl);
   const win = window.open("", "_blank", "width=850,height=1000");
   if (!win) {
     window.alert("Please allow pop-ups for this site to print labels.");
