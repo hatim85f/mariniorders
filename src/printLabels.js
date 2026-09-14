@@ -103,7 +103,7 @@ export function buildLabelsHtml(order, shipment, aramexLabelDataUrl) {
     justify-content: center;
     overflow: hidden;
   }
-  .aramexSlot img { max-width: 100%; max-height: 100%; object-fit: contain; }
+  .aramexSlot img { height: 80%; width: auto; max-width: 100%; object-fit: contain; }
   .aramexSlotEmpty { font-family: Arial, Helvetica, sans-serif; font-size: 12px; color: #94A3B8; text-align: center; padding: 8mm; }
 </style>
 </head>
