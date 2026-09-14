@@ -55,9 +55,51 @@ function pickPdfFile() {
   });
 }
 
-// Renders page 1 of the given PDF file to a canvas, rotates it 90° clockwise,
-// and returns a PNG data URL of the rotated image — ready to drop straight
-// into an <img> tag on the print page.
+// Aramex's own label PDFs render the actual barcode/address block into just
+// the top-left corner of a full blank page (confirmed by inspecting one
+// directly) — rendering the whole page gives a mostly-white image where the
+// real label is a small corner of it, no matter how big the print slot is.
+// This scans the rendered canvas for the bounding box of non-white content
+// and crops to that, with a small margin, before rotating.
+function trimToContent(canvas, padding = 12) {
+  const ctx = canvas.getContext("2d");
+  const { width, height } = canvas;
+  const { data } = ctx.getImageData(0, 0, width, height);
+
+  let minX = width, minY = height, maxX = -1, maxY = -1;
+  // Step by 2px in each direction — plenty accurate for finding a bounding
+  // box and roughly 4x faster than scanning every pixel on a scale-3 render.
+  for (let y = 0; y < height; y += 2) {
+    for (let x = 0; x < width; x += 2) {
+      const i = (y * width + x) * 4;
+      const r = data[i], g = data[i + 1], b = data[i + 2], a = data[i + 3];
+      const isBackground = a < 10 || (r > 245 && g > 245 && b > 245);
+      if (!isBackground) {
+        if (x < minX) minX = x;
+        if (x > maxX) maxX = x;
+        if (y < minY) minY = y;
+        if (y > maxY) maxY = y;
+      }
+    }
+  }
+
+  if (maxX < 0) return canvas; // nothing but blank page found — return as-is rather than fail
+
+  minX = Math.max(0, minX - padding);
+  minY = Math.max(0, minY - padding);
+  maxX = Math.min(width - 1, maxX + padding);
+  maxY = Math.min(height - 1, maxY + padding);
+
+  const trimmed = document.createElement("canvas");
+  trimmed.width = maxX - minX + 1;
+  trimmed.height = maxY - minY + 1;
+  trimmed.getContext("2d").drawImage(canvas, minX, minY, trimmed.width, trimmed.height, 0, 0, trimmed.width, trimmed.height);
+  return trimmed;
+}
+
+// Renders page 1 of the given PDF file to a canvas, crops to the actual
+// label content, rotates it 90° clockwise, and returns a PNG data URL —
+// ready to drop straight into an <img> tag on the print page.
 async function rotatePdfPageToDataUrl(file) {
   const arrayBuffer = await file.arrayBuffer();
   const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
@@ -70,17 +112,24 @@ async function rotatePdfPageToDataUrl(file) {
   const renderCanvas = document.createElement("canvas");
   renderCanvas.width = viewport.width;
   renderCanvas.height = viewport.height;
-  await page.render({ canvasContext: renderCanvas.getContext("2d"), viewport }).promise;
+  const renderCtx = renderCanvas.getContext("2d");
+  // getImageData needs an opaque white base — a transparent PDF background
+  // would otherwise read as "background" everywhere in trimToContent.
+  renderCtx.fillStyle = "#FFFFFF";
+  renderCtx.fillRect(0, 0, renderCanvas.width, renderCanvas.height);
+  await page.render({ canvasContext: renderCtx, viewport }).promise;
+
+  const contentCanvas = trimToContent(renderCanvas);
 
   // Swap width/height for the rotated output canvas, then rotate the
-  // rendered page 90° clockwise into it.
+  // cropped label 90° clockwise into it.
   const rotatedCanvas = document.createElement("canvas");
-  rotatedCanvas.width = renderCanvas.height;
-  rotatedCanvas.height = renderCanvas.width;
+  rotatedCanvas.width = contentCanvas.height;
+  rotatedCanvas.height = contentCanvas.width;
   const ctx = rotatedCanvas.getContext("2d");
   ctx.translate(rotatedCanvas.width, 0);
   ctx.rotate(Math.PI / 2);
-  ctx.drawImage(renderCanvas, 0, 0);
+  ctx.drawImage(contentCanvas, 0, 0);
 
   return rotatedCanvas.toDataURL("image/png");
 }
