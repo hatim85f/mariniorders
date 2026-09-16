@@ -3,7 +3,7 @@ import { View, Text, Pressable, StyleSheet, ScrollView, Image, ActivityIndicator
 import { colors, spacing, radius, EMPLOYEE_STATUS_META } from "../theme";
 import Sidebar from "../components/Sidebar";
 import StatusTracker from "../components/StatusTracker";
-import { markOrderFulfilled, saveOrderShipment, refreshOrderTracking } from "../api";
+import { markOrderFulfilled, saveOrderShipment, refreshOrderTracking, getShipmentRate, requestShipment } from "../api";
 import { printOrderLabels } from "../printLabels";
 import { pickAndRotateAramexLabel } from "../attachAramexLabel";
 import ShipmentPrintFields, { useShipmentPrintFields } from "../components/ShipmentPrintFields";
@@ -24,6 +24,7 @@ export default function OrderDetailScreen({ order, onBack, onLoggedOut, view = "
   const [attachingLabel, setAttachingLabel] = useState(false);
   const [trackingStatus, setTrackingStatus] = useState(order.outboundTrackingStatus || "");
   const [refreshingTracking, setRefreshingTracking] = useState(false);
+  const [requestingShipment, setRequestingShipment] = useState(false);
 
   const handleAttachLabel = async () => {
     setAttachingLabel(true);
@@ -69,6 +70,38 @@ export default function OrderDetailScreen({ order, onBack, onLoggedOut, view = "
       setError(e.message);
     } finally {
       setRefreshingTracking(false);
+    }
+  };
+
+  const handleRequestShipment = async () => {
+    const weightInput = window.prompt("Package weight in kg (e.g. 0.5)", "0.5");
+    if (!weightInput) return;
+    const weight = Number(weightInput);
+    if (!weight || weight <= 0) {
+      window.alert("Enter a valid weight in kg.");
+      return;
+    }
+    const piecesInput = window.prompt("Number of pieces/boxes", "1");
+    const numberOfPieces = Number(piecesInput) || 1;
+
+    setRequestingShipment(true);
+    setError("");
+    try {
+      const rate = await getShipmentRate(order.orderNumber, { weight, numberOfPieces });
+      const proceed = window.confirm(
+        `Aramex quote: ${rate.currency} ${Number(rate.amount).toFixed(2)} for ${weight}kg, ${numberOfPieces} piece(s).\n\nBook this shipment now?`
+      );
+      if (!proceed) return;
+
+      const result = await requestShipment(order.orderNumber, { weight, numberOfPieces });
+      shipment.setCourier("Aramex");
+      shipment.setTrackingNumber(result.trackingNumber);
+      window.alert(`Shipment booked. Aramex tracking number: ${result.trackingNumber}`);
+    } catch (e) {
+      setError(e.message);
+      window.alert(`Aramex error: ${e.message}`);
+    } finally {
+      setRequestingShipment(false);
     }
   };
 
@@ -123,6 +156,11 @@ export default function OrderDetailScreen({ order, onBack, onLoggedOut, view = "
               onCollectionRefChange={shipment.setCollectionReference}
             />
             <View style={styles.printActions}>
+              <Pressable onPress={handleRequestShipment} disabled={requestingShipment} style={styles.requestShipmentBtn}>
+                <Text style={styles.requestShipmentBtnText}>
+                  {requestingShipment ? "Requesting…" : "📦 Request Shipment"}
+                </Text>
+              </Pressable>
               <Pressable onPress={handleAttachLabel} disabled={attachingLabel} style={styles.saveBtn}>
                 <Text style={styles.saveBtnText}>
                   {attachingLabel ? "Reading PDF…" : aramexLabelDataUrl ? "📎 Label attached ✓" : "📎 Attach Aramex Label"}
@@ -271,6 +309,13 @@ const styles = StyleSheet.create({
     borderRadius: radius - 4,
   },
   saveBtnText: { color: colors.mutedText, fontWeight: "700", fontSize: 13 },
+  requestShipmentBtn: {
+    backgroundColor: colors.secondaryTeal,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderRadius: radius - 4,
+  },
+  requestShipmentBtnText: { color: "#fff", fontWeight: "700", fontSize: 13 },
   savedNote: { fontSize: 11, color: colors.success, marginBottom: spacing.sm, marginTop: -4 },
   trackingStatusNote: { fontSize: 12, color: colors.primary, fontWeight: "600", marginBottom: spacing.sm, marginTop: -4 },
   fulfillBtn: {

@@ -5,7 +5,7 @@ import Sidebar from "../components/Sidebar";
 import StatusTracker from "../components/StatusTracker";
 import { printOrderLabels } from "../printLabels";
 import { pickAndRotateAramexLabel } from "../attachAramexLabel";
-import { saveOrderShipment, refreshOrderTracking, markOrderFulfilled } from "../api";
+import { saveOrderShipment, refreshOrderTracking, markOrderFulfilled, getShipmentRate, requestShipment } from "../api";
 import ShipmentPrintFields, { useShipmentPrintFields } from "../components/ShipmentPrintFields";
 
 function formatAddress(addr) {
@@ -30,6 +30,7 @@ export default function OwnerOrderDetailScreen({ order, onBack, onLoggedOut, vie
   const [fulfilled, setFulfilled] = useState(order.fulfilled);
   const [fulfilling, setFulfilling] = useState(false);
   const [fulfillError, setFulfillError] = useState("");
+  const [requestingShipment, setRequestingShipment] = useState(false);
 
   const handleAttachLabel = async () => {
     setAttachingLabel(true);
@@ -82,6 +83,36 @@ export default function OwnerOrderDetailScreen({ order, onBack, onLoggedOut, vie
     }
   };
 
+  const handleRequestShipment = async () => {
+    const weightInput = window.prompt("Package weight in kg (e.g. 0.5)", "0.5");
+    if (!weightInput) return;
+    const weight = Number(weightInput);
+    if (!weight || weight <= 0) {
+      window.alert("Enter a valid weight in kg.");
+      return;
+    }
+    const piecesInput = window.prompt("Number of pieces/boxes", "1");
+    const numberOfPieces = Number(piecesInput) || 1;
+
+    setRequestingShipment(true);
+    try {
+      const rate = await getShipmentRate(order.orderNumber, { weight, numberOfPieces }, true);
+      const proceed = window.confirm(
+        `Aramex quote: ${rate.currency} ${Number(rate.amount).toFixed(2)} for ${weight}kg, ${numberOfPieces} piece(s).\n\nBook this shipment now?`
+      );
+      if (!proceed) return;
+
+      const result = await requestShipment(order.orderNumber, { weight, numberOfPieces }, true);
+      shipment.setCourier("Aramex");
+      shipment.setTrackingNumber(result.trackingNumber);
+      window.alert(`Shipment booked. Aramex tracking number: ${result.trackingNumber}`);
+    } catch (e) {
+      window.alert(`Aramex error: ${e.message}`);
+    } finally {
+      setRequestingShipment(false);
+    }
+  };
+
   const handlePrint = () => {
     printOrderLabels(order, { courier: shipment.courier, trackingNumber: shipment.trackingNumber, collectionReference: shipment.collectionReference }, aramexLabelDataUrl);
     handleSaveShipment();
@@ -126,6 +157,11 @@ export default function OwnerOrderDetailScreen({ order, onBack, onLoggedOut, vie
               onCollectionRefChange={shipment.setCollectionReference}
             />
             <View style={styles.printActions}>
+              <Pressable onPress={handleRequestShipment} disabled={requestingShipment} style={styles.requestShipmentBtn}>
+                <Text style={styles.requestShipmentBtnText}>
+                  {requestingShipment ? "Requesting…" : "📦 Request Shipment"}
+                </Text>
+              </Pressable>
               <Pressable onPress={handleAttachLabel} disabled={attachingLabel} style={styles.saveBtn}>
                 <Text style={styles.saveBtnText}>
                   {attachingLabel ? "Reading PDF…" : aramexLabelDataUrl ? "📎 Label attached ✓" : "📎 Attach Aramex Label"}
@@ -289,6 +325,13 @@ const styles = StyleSheet.create({
     borderRadius: radius - 4,
   },
   saveBtnText: { color: colors.mutedText, fontWeight: "700", fontSize: 13 },
+  requestShipmentBtn: {
+    backgroundColor: colors.secondaryTeal,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderRadius: radius - 4,
+  },
+  requestShipmentBtnText: { color: "#fff", fontWeight: "700", fontSize: 13 },
   savedNote: { fontSize: 11, color: colors.success, marginBottom: spacing.sm, marginTop: -4 },
   trackingStatusNote: { fontSize: 12, color: colors.primary, fontWeight: "600", marginBottom: spacing.sm, marginTop: -4 },
   headerCols: { flexDirection: "row", gap: spacing.xl, flexWrap: "wrap" },

@@ -69,6 +69,33 @@ export async function refreshOrderTracking(orderNumber, isOwner = false) {
   return data;
 }
 
+// Live Aramex delivery-cost quote for a given weight, before actually booking.
+export async function getShipmentRate(orderNumber, { weight, numberOfPieces }, isOwner = false) {
+  const token = await stockToken(isOwner);
+  const res = await fetch(`${API_BASE_URL}/api/janmarini/orders/${encodeURIComponent(orderNumber)}/shipment-rate`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "x-auth-token": token || "" },
+    body: JSON.stringify({ weight, numberOfPieces }),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.message || "Failed to get shipment rate");
+  return data;
+}
+
+// Actually books the Aramex shipment and saves the resulting tracking number
+// on the order.
+export async function requestShipment(orderNumber, { weight, numberOfPieces }, isOwner = false) {
+  const token = await stockToken(isOwner);
+  const res = await fetch(`${API_BASE_URL}/api/janmarini/orders/${encodeURIComponent(orderNumber)}/request-shipment`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "x-auth-token": token || "" },
+    body: JSON.stringify({ weight, numberOfPieces }),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.message || "Failed to request shipment");
+  return data;
+}
+
 export async function markOrderFulfilled(orderNumber, isOwner = false) {
   const token = await stockToken(isOwner);
   const res = await fetch(`${API_BASE_URL}/api/janmarini/orders/${encodeURIComponent(orderNumber)}/fulfill`, {
