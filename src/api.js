@@ -69,8 +69,8 @@ export async function refreshOrderTracking(orderNumber, isOwner = false) {
   return data;
 }
 
-export async function markOrderFulfilled(orderNumber) {
-  const token = await getStoredToken();
+export async function markOrderFulfilled(orderNumber, isOwner = false) {
+  const token = await stockToken(isOwner);
   const res = await fetch(`${API_BASE_URL}/api/janmarini/orders/${encodeURIComponent(orderNumber)}/fulfill`, {
     method: "POST",
     headers: { "x-auth-token": token || "" },

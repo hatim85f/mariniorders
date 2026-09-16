@@ -1,11 +1,11 @@
 import React, { useState } from "react";
-import { View, Text, StyleSheet, ScrollView, Image, Pressable } from "react-native";
+import { View, Text, StyleSheet, ScrollView, Image, Pressable, ActivityIndicator } from "react-native";
 import { colors, spacing, radius, STATUS_STEPS, STATUS_META, formatAmount } from "../theme";
 import Sidebar from "../components/Sidebar";
 import StatusTracker from "../components/StatusTracker";
 import { printOrderLabels } from "../printLabels";
 import { pickAndRotateAramexLabel } from "../attachAramexLabel";
-import { saveOrderShipment, refreshOrderTracking } from "../api";
+import { saveOrderShipment, refreshOrderTracking, markOrderFulfilled } from "../api";
 import ShipmentPrintFields, { useShipmentPrintFields } from "../components/ShipmentPrintFields";
 
 function formatAddress(addr) {
@@ -27,6 +27,9 @@ export default function OwnerOrderDetailScreen({ order, onBack, onLoggedOut, vie
   const [attachingLabel, setAttachingLabel] = useState(false);
   const [trackingStatus, setTrackingStatus] = useState(order.outboundTrackingStatus || "");
   const [refreshingTracking, setRefreshingTracking] = useState(false);
+  const [fulfilled, setFulfilled] = useState(order.fulfilled);
+  const [fulfilling, setFulfilling] = useState(false);
+  const [fulfillError, setFulfillError] = useState("");
 
   const handleAttachLabel = async () => {
     setAttachingLabel(true);
@@ -66,6 +69,19 @@ export default function OwnerOrderDetailScreen({ order, onBack, onLoggedOut, vie
     }
   };
 
+  const handleMarkFulfilled = async () => {
+    setFulfilling(true);
+    setFulfillError("");
+    try {
+      await markOrderFulfilled(order.orderNumber, true);
+      setFulfilled(true);
+    } catch (e) {
+      setFulfillError(e.message);
+    } finally {
+      setFulfilling(false);
+    }
+  };
+
   const handlePrint = () => {
     printOrderLabels(order, { courier: shipment.courier, trackingNumber: shipment.trackingNumber, collectionReference: shipment.collectionReference }, aramexLabelDataUrl);
     handleSaveShipment();
@@ -83,7 +99,23 @@ export default function OwnerOrderDetailScreen({ order, onBack, onLoggedOut, vie
         <View style={styles.headerCard}>
           <View style={styles.headerTopRow}>
             <Text style={styles.orderTitle}>Order {order.orderNumber}</Text>
+            <View style={styles.headerActions}>
+              {fulfilled ? (
+                <View style={styles.fulfilledPill}>
+                  <Text style={styles.fulfilledPillText}>✓ Fulfilled</Text>
+                </View>
+              ) : (
+                <Pressable
+                  onPress={handleMarkFulfilled}
+                  disabled={fulfilling}
+                  style={({ pressed }) => [styles.fulfillBtn, pressed && styles.fulfillBtnPressed]}
+                >
+                  {fulfilling ? <ActivityIndicator color="#fff" /> : <Text style={styles.fulfillBtnText}>Mark Fulfilled</Text>}
+                </Pressable>
+              )}
+            </View>
           </View>
+          {!!fulfillError && <Text style={styles.error}>{fulfillError}</Text>}
           <View style={styles.printRow}>
             <ShipmentPrintFields
               courier={shipment.courier}
@@ -227,6 +259,18 @@ const styles = StyleSheet.create({
   },
   headerTopRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: spacing.md },
   orderTitle: { fontSize: 20, fontWeight: "700", color: colors.text },
+  headerActions: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
+  fulfillBtn: {
+    backgroundColor: colors.primary,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderRadius: radius - 4,
+  },
+  fulfillBtnPressed: { backgroundColor: colors.primaryDark },
+  fulfillBtnText: { color: "#fff", fontWeight: "700", fontSize: 13 },
+  fulfilledPill: { backgroundColor: colors.success + "22", paddingHorizontal: spacing.md, paddingVertical: spacing.sm, borderRadius: 999 },
+  fulfilledPillText: { color: colors.success, fontWeight: "700", fontSize: 13 },
+  error: { color: colors.danger, fontSize: 12, marginBottom: spacing.sm },
   printRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: spacing.sm, marginBottom: spacing.md },
   printActions: { flexDirection: "row", gap: spacing.sm },
   printBtn: {
