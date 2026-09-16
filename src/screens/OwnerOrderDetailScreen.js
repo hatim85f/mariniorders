@@ -62,9 +62,14 @@ export default function OwnerOrderDetailScreen({ order, onBack, onLoggedOut, vie
     setRefreshingTracking(true);
     try {
       const data = await refreshOrderTracking(order.orderNumber, true);
-      setTrackingStatus(data.outboundTrackingStatus || "");
+      if (data.noUpdateYet) {
+        setTrackingStatus("");
+        window.alert("Aramex has no tracking update yet for this waybill.");
+      } else {
+        setTrackingStatus(data.outboundTrackingStatus || "");
+      }
     } catch (e) {
-      // non-fatal -- tracking status just stays whatever it was
+      window.alert(e.message);
     } finally {
       setRefreshingTracking(false);
     }

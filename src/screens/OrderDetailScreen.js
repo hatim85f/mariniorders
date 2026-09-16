@@ -65,9 +65,15 @@ export default function OrderDetailScreen({ order, onBack, onLoggedOut, view = "
     setError("");
     try {
       const data = await refreshOrderTracking(order.orderNumber);
-      setTrackingStatus(data.outboundTrackingStatus || "");
+      if (data.noUpdateYet) {
+        setTrackingStatus("");
+        window.alert("Aramex has no tracking update yet for this waybill.");
+      } else {
+        setTrackingStatus(data.outboundTrackingStatus || "");
+      }
     } catch (e) {
       setError(e.message);
+      window.alert(e.message);
     } finally {
       setRefreshingTracking(false);
     }
