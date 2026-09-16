@@ -5,7 +5,7 @@ import Sidebar from "../components/Sidebar";
 import StatusTracker from "../components/StatusTracker";
 import { printOrderLabels } from "../printLabels";
 import { pickAndRotateAramexLabel } from "../attachAramexLabel";
-import { saveOrderShipment } from "../api";
+import { saveOrderShipment, refreshOrderTracking } from "../api";
 import ShipmentPrintFields, { useShipmentPrintFields } from "../components/ShipmentPrintFields";
 
 function formatAddress(addr) {
@@ -25,6 +25,8 @@ export default function OwnerOrderDetailScreen({ order, onBack, onLoggedOut, vie
   const [shipmentSavedAt, setShipmentSavedAt] = useState(null);
   const [aramexLabelDataUrl, setAramexLabelDataUrl] = useState(null);
   const [attachingLabel, setAttachingLabel] = useState(false);
+  const [trackingStatus, setTrackingStatus] = useState(order.outboundTrackingStatus || "");
+  const [refreshingTracking, setRefreshingTracking] = useState(false);
 
   const handleAttachLabel = async () => {
     setAttachingLabel(true);
@@ -49,6 +51,18 @@ export default function OwnerOrderDetailScreen({ order, onBack, onLoggedOut, vie
       // non-fatal -- tracking number stays in the form either way
     } finally {
       setSavingShipment(false);
+    }
+  };
+
+  const handleRefreshTracking = async () => {
+    setRefreshingTracking(true);
+    try {
+      const data = await refreshOrderTracking(order.orderNumber, true);
+      setTrackingStatus(data.outboundTrackingStatus || "");
+    } catch (e) {
+      // non-fatal -- tracking status just stays whatever it was
+    } finally {
+      setRefreshingTracking(false);
     }
   };
 
@@ -88,12 +102,20 @@ export default function OwnerOrderDetailScreen({ order, onBack, onLoggedOut, vie
               <Pressable onPress={handleSaveShipment} disabled={savingShipment} style={styles.saveBtn}>
                 <Text style={styles.saveBtnText}>{savingShipment ? "Saving…" : "💾 Save Tracking"}</Text>
               </Pressable>
+              <Pressable
+                onPress={handleRefreshTracking}
+                disabled={refreshingTracking || !shipment.trackingNumber}
+                style={styles.saveBtn}
+              >
+                <Text style={styles.saveBtnText}>{refreshingTracking ? "Checking…" : "🔄 Refresh Tracking"}</Text>
+              </Pressable>
               <Pressable onPress={handlePrint} style={styles.printBtn}>
                 <Text style={styles.printBtnText}>🖨 Print Address Details</Text>
               </Pressable>
             </View>
           </View>
           {!!shipmentSavedAt && <Text style={styles.savedNote}>Saved {shipmentSavedAt.toLocaleTimeString()}</Text>}
+          {!!trackingStatus && <Text style={styles.trackingStatusNote}>Aramex status: {trackingStatus}</Text>}
           <View style={styles.headerCols}>
             <View>
               <Text style={styles.headerLabel}>CUSTOMER</Text>
@@ -224,6 +246,7 @@ const styles = StyleSheet.create({
   },
   saveBtnText: { color: colors.mutedText, fontWeight: "700", fontSize: 13 },
   savedNote: { fontSize: 11, color: colors.success, marginBottom: spacing.sm, marginTop: -4 },
+  trackingStatusNote: { fontSize: 12, color: colors.primary, fontWeight: "600", marginBottom: spacing.sm, marginTop: -4 },
   headerCols: { flexDirection: "row", gap: spacing.xl, flexWrap: "wrap" },
   headerLabel: { fontSize: 10, color: colors.primary, fontWeight: "700", letterSpacing: 0.5, marginBottom: 2 },
   headerValue: { fontSize: 14, fontWeight: "600", color: colors.text },

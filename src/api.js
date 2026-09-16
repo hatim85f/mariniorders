@@ -56,6 +56,19 @@ export async function saveOrderShipment(orderNumber, { courier, trackingNumber, 
   return data;
 }
 
+// On-demand Aramex status check for one order -- doesn't touch the saved
+// tracking number, just re-queries the current status for it.
+export async function refreshOrderTracking(orderNumber, isOwner = false) {
+  const token = await stockToken(isOwner);
+  const res = await fetch(`${API_BASE_URL}/api/janmarini/orders/${encodeURIComponent(orderNumber)}/refresh-tracking`, {
+    method: "POST",
+    headers: { "x-auth-token": token || "" },
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.message || "Failed to refresh tracking");
+  return data;
+}
+
 export async function markOrderFulfilled(orderNumber) {
   const token = await getStoredToken();
   const res = await fetch(`${API_BASE_URL}/api/janmarini/orders/${encodeURIComponent(orderNumber)}/fulfill`, {

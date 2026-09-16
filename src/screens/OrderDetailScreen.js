@@ -3,7 +3,7 @@ import { View, Text, Pressable, StyleSheet, ScrollView, Image, ActivityIndicator
 import { colors, spacing, radius, EMPLOYEE_STATUS_META } from "../theme";
 import Sidebar from "../components/Sidebar";
 import StatusTracker from "../components/StatusTracker";
-import { markOrderFulfilled, saveOrderShipment } from "../api";
+import { markOrderFulfilled, saveOrderShipment, refreshOrderTracking } from "../api";
 import { printOrderLabels } from "../printLabels";
 import { pickAndRotateAramexLabel } from "../attachAramexLabel";
 import ShipmentPrintFields, { useShipmentPrintFields } from "../components/ShipmentPrintFields";
@@ -22,6 +22,8 @@ export default function OrderDetailScreen({ order, onBack, onLoggedOut, view = "
   const [shipmentSavedAt, setShipmentSavedAt] = useState(null);
   const [aramexLabelDataUrl, setAramexLabelDataUrl] = useState(null);
   const [attachingLabel, setAttachingLabel] = useState(false);
+  const [trackingStatus, setTrackingStatus] = useState(order.outboundTrackingStatus || "");
+  const [refreshingTracking, setRefreshingTracking] = useState(false);
 
   const handleAttachLabel = async () => {
     setAttachingLabel(true);
@@ -55,6 +57,19 @@ export default function OrderDetailScreen({ order, onBack, onLoggedOut, view = "
     // Fire-and-forget — printing shouldn't wait on the network, but the
     // number typed in right before printing is almost always the final one.
     handleSaveShipment();
+  };
+
+  const handleRefreshTracking = async () => {
+    setRefreshingTracking(true);
+    setError("");
+    try {
+      const data = await refreshOrderTracking(order.orderNumber);
+      setTrackingStatus(data.outboundTrackingStatus || "");
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setRefreshingTracking(false);
+    }
   };
 
   const handleMarkFulfilled = async () => {
@@ -116,6 +131,13 @@ export default function OrderDetailScreen({ order, onBack, onLoggedOut, view = "
               <Pressable onPress={handleSaveShipment} disabled={savingShipment} style={styles.saveBtn}>
                 <Text style={styles.saveBtnText}>{savingShipment ? "Saving…" : "💾 Save Tracking"}</Text>
               </Pressable>
+              <Pressable
+                onPress={handleRefreshTracking}
+                disabled={refreshingTracking || !shipment.trackingNumber}
+                style={styles.saveBtn}
+              >
+                <Text style={styles.saveBtnText}>{refreshingTracking ? "Checking…" : "🔄 Refresh Tracking"}</Text>
+              </Pressable>
               <Pressable onPress={handlePrint} style={styles.printBtn}>
                 <Text style={styles.printBtnText}>🖨 Print Address Details</Text>
               </Pressable>
@@ -123,6 +145,9 @@ export default function OrderDetailScreen({ order, onBack, onLoggedOut, view = "
           </View>
           {!!shipmentSavedAt && (
             <Text style={styles.savedNote}>Saved {shipmentSavedAt.toLocaleTimeString()}</Text>
+          )}
+          {!!trackingStatus && (
+            <Text style={styles.trackingStatusNote}>Aramex status: {trackingStatus}</Text>
           )}
           {!!error && <Text style={styles.error}>{error}</Text>}
           <View style={styles.headerCols}>
@@ -247,6 +272,7 @@ const styles = StyleSheet.create({
   },
   saveBtnText: { color: colors.mutedText, fontWeight: "700", fontSize: 13 },
   savedNote: { fontSize: 11, color: colors.success, marginBottom: spacing.sm, marginTop: -4 },
+  trackingStatusNote: { fontSize: 12, color: colors.primary, fontWeight: "600", marginBottom: spacing.sm, marginTop: -4 },
   fulfillBtn: {
     backgroundColor: colors.primary,
     paddingHorizontal: spacing.md,
